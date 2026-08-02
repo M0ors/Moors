@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Avatar } from "@/components/Avatar";
 import { ReplyForm } from "@/components/ReplyForm";
 import { createClient } from "@/lib/supabase/server";
 
@@ -20,7 +21,7 @@ export default async function ThreadPage({ params }: Props) {
       id,
       title,
       created_at,
-      profiles:author_id ( username )
+      profiles:author_id ( username, avatar_url )
     `
     )
     .eq("id", params.id)
@@ -37,7 +38,7 @@ export default async function ThreadPage({ params }: Props) {
       id,
       body,
       created_at,
-      profiles:author_id ( username )
+      profiles:author_id ( username, avatar_url )
     `
     )
     .eq("thread_id", params.id)
@@ -56,10 +57,13 @@ export default async function ThreadPage({ params }: Props) {
       </p>
 
       <h1 className="text-2xl font-semibold mb-2">{thread.title}</h1>
-      <p className="text-sm text-neutral-600 mb-8">
-        started by {author?.username ?? "unknown"} ·{" "}
-        {new Date(thread.created_at).toLocaleString()}
-      </p>
+      <div className="text-sm text-neutral-600 mb-8 flex items-center gap-2">
+        <Avatar username={author?.username} avatarUrl={author?.avatar_url} size={24} />
+        <span>
+          started by {author?.username ?? "unknown"} ·{" "}
+          {new Date(thread.created_at).toLocaleString()}
+        </span>
+      </div>
 
       <ul className="space-y-6">
         {posts?.map((post) => {
@@ -69,10 +73,17 @@ export default async function ThreadPage({ params }: Props) {
 
           return (
             <li key={post.id} className="border rounded p-4">
-              <p className="text-sm text-neutral-600 mb-2">
-                {postAuthor?.username ?? "unknown"} ·{" "}
-                {new Date(post.created_at).toLocaleString()}
-              </p>
+              <div className="text-sm text-neutral-600 mb-2 flex items-center gap-2">
+                <Avatar
+                  username={postAuthor?.username}
+                  avatarUrl={postAuthor?.avatar_url}
+                  size={24}
+                />
+                <span>
+                  {postAuthor?.username ?? "unknown"} ·{" "}
+                  {new Date(post.created_at).toLocaleString()}
+                </span>
+              </div>
               <p className="whitespace-pre-wrap">{post.body}</p>
             </li>
           );
