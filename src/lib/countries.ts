@@ -46,8 +46,9 @@ export function countryFlag(code?: string | null) {
     return null;
   }
 
-  const points = [...code].map((char) => 127397 + char.charCodeAt(0));
-  return String.fromCodePoint(...points);
+  const first = 127397 + code.charCodeAt(0);
+  const second = 127397 + code.charCodeAt(1);
+  return String.fromCodePoint(first, second);
 }
 
 export function countryName(code?: string | null) {
