@@ -1,0 +1,129 @@
+-- Run this in the Supabase SQL Editor (Dashboard → SQL → New query)
+
+create table public.profiles (
+  id uuid primary key references auth.users (id) on delete cascade,
+  username text unique not null,
+  created_at timestamptz not null default now()
+);
+
+create table public.threads (
+  id uuid primary key default gen_random_uuid(),
+  title text not null check (char_length(title) between 1 and 200),
+  author_id uuid not null references public.profiles (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table public.posts (
+  id uuid primary key default gen_random_uuid(),
+  thread_id uuid not null references public.threads (id) on delete cascade,
+  author_id uuid not null references public.profiles (id) on delete cascade,
+  body text not null check (char_length(body) between 1 and 10000),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index threads_updated_at_idx on public.threads (updated_at desc);
+create index posts_thread_id_idx on public.posts (thread_id, created_at);
+
+create or replace function public.handle_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+create trigger threads_updated_at
+  before update on public.threads
+  for each row execute function public.handle_updated_at();
+
+create trigger posts_updated_at
+  before update on public.posts
+  for each row execute function public.handle_updated_at();
+
+create or replace function public.bump_thread_on_post()
+returns trigger
+language plpgsql
+as $$
+begin
+  update public.threads
+  set updated_at = now()
+  where id = new.thread_id;
+  return new;
+end;
+$$;
+
+create trigger posts_bump_thread
+  after insert on public.posts
+  for each row execute function public.bump_thread_on_post();
+
+alter table public.profiles enable row level security;
+alter table public.threads enable row level security;
+alter table public.posts enable row level security;
+
+create policy "Profiles are viewable by everyone"
+  on public.profiles for select using (true);
+
+create policy "Users can insert their own profile"
+  on public.profiles for insert
+  with check (auth.uid() = id);
+
+create policy "Users can update their own profile"
+  on public.profiles for update
+  using (auth.uid() = id);
+
+create policy "Threads are viewable by everyone"
+  on public.threads for select using (true);
+
+create policy "Authenticated users can create threads"
+  on public.threads for insert
+  with check (auth.uid() = author_id);
+
+create policy "Authors can update their threads"
+  on public.threads for update
+  using (auth.uid() = author_id);
+
+create policy "Authors can delete their threads"
+  on public.threads for delete
+  using (auth.uid() = author_id);
+
+create policy "Posts are viewable by everyone"
+  on public.posts for select using (true);
+
+create policy "Authenticated users can create posts"
+  on public.posts for insert
+  with check (auth.uid() = author_id);
+
+create policy "Authors can update their posts"
+  on public.posts for update
+  using (auth.uid() = author_id);
+
+create policy "Authors can delete their posts"
+  on public.posts for delete
+  using (auth.uid() = author_id);
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.profiles (id, username)
+  values (
+    new.id,
+    coalesce(
+      nullif(trim(new.raw_user_meta_data->>'username'), ''),
+      'user_' || left(replace(new.id::text, '-', ''), 8)
+    )
+  );
+  return new;
+end;
+$$;
+
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
