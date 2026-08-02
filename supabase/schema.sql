@@ -4,6 +4,8 @@ create table public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   username text unique not null,
   avatar_url text,
+  is_admin boolean not null default false,
+  is_banned boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -79,32 +81,69 @@ create policy "Users can update their own profile"
 create policy "Threads are viewable by everyone"
   on public.threads for select using (true);
 
-create policy "Authenticated users can create threads"
+create policy "Authenticated non-banned users can create threads"
   on public.threads for insert
-  with check (auth.uid() = author_id);
+  with check (
+    auth.uid() = author_id
+    and coalesce((select is_banned from public.profiles where id = auth.uid()), false) = false
+  );
 
 create policy "Authors can update their threads"
   on public.threads for update
   using (auth.uid() = author_id);
 
-create policy "Authors can delete their threads"
+create or replace function public.is_admin(uid uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce((select is_admin from public.profiles where id = uid), false);
+$$;
+
+create or replace function public.protect_profile_flags()
+returns trigger
+language plpgsql
+as $$
+begin
+  if not public.is_admin(auth.uid()) then
+    new.is_admin := old.is_admin;
+    new.is_banned := old.is_banned;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger profiles_protect_flags
+  before update on public.profiles
+  for each row execute function public.protect_profile_flags();
+
+create policy "Authors or admins can delete threads"
   on public.threads for delete
-  using (auth.uid() = author_id);
+  using (auth.uid() = author_id or public.is_admin(auth.uid()));
 
 create policy "Posts are viewable by everyone"
   on public.posts for select using (true);
 
-create policy "Authenticated users can create posts"
+create policy "Authenticated non-banned users can create posts"
   on public.posts for insert
-  with check (auth.uid() = author_id);
+  with check (
+    auth.uid() = author_id
+    and coalesce((select is_banned from public.profiles where id = auth.uid()), false) = false
+  );
 
 create policy "Authors can update their posts"
   on public.posts for update
   using (auth.uid() = author_id);
 
-create policy "Authors can delete their posts"
+create policy "Authors or admins can delete posts"
   on public.posts for delete
-  using (auth.uid() = author_id);
+  using (auth.uid() = author_id or public.is_admin(auth.uid()));
+
+create policy "Admins can update any profile"
+  on public.profiles for update
+  using (public.is_admin(auth.uid()));
 
 create or replace function public.handle_new_user()
 returns trigger

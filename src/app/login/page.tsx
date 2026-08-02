@@ -4,7 +4,11 @@ import { signIn } from "@/app/actions/auth";
 import { AuthForm } from "@/components/AuthForm";
 import { createClient } from "@/lib/supabase/server";
 
-export default async function LoginPage() {
+type Props = {
+  searchParams: { error?: string };
+};
+
+export default async function LoginPage({ searchParams }: Props) {
   const supabase = createClient();
   const {
     data: { user },
@@ -17,6 +21,11 @@ export default async function LoginPage() {
   return (
     <main>
       <h1 className="text-2xl font-semibold mb-6">Log in</h1>
+      {searchParams.error === "banned" ? (
+        <p className="text-red-600 text-sm mb-4">
+          Your account has been banned.
+        </p>
+      ) : null}
       <AuthForm action={signIn} submitLabel="Log in">
         <label className="flex flex-col gap-1">
           Email

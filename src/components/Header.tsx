@@ -11,15 +11,17 @@ export async function Header() {
 
   let username: string | null = null;
   let avatarUrl: string | null = null;
+  let isAdmin = false;
 
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("username, avatar_url")
+      .select("username, avatar_url, is_admin")
       .eq("id", user.id)
       .single();
     username = profile?.username ?? null;
     avatarUrl = profile?.avatar_url ?? null;
+    isAdmin = Boolean(profile?.is_admin);
   }
 
   return (
@@ -35,6 +37,7 @@ export async function Header() {
               <span className="underline">{username ?? user.email}</span>
             </Link>
             <Link href="/threads/new">New thread</Link>
+            {isAdmin ? <Link href="/admin">Admin</Link> : null}
             <form action={signOut}>
               <button type="submit">Log out</button>
             </form>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Avatar } from "@/components/Avatar";
+import { PostActions } from "@/components/PostActions";
 import { ReplyForm } from "@/components/ReplyForm";
 import { createClient } from "@/lib/supabase/server";
 
@@ -13,6 +14,16 @@ export default async function ThreadPage({ params }: Props) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  let isAdmin = false;
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin, is_banned")
+      .eq("id", user.id)
+      .single();
+    isAdmin = Boolean(profile?.is_admin);
+  }
 
   const { data: thread, error: threadError } = await supabase
     .from("threads")
@@ -37,6 +48,7 @@ export default async function ThreadPage({ params }: Props) {
       `
       id,
       body,
+      author_id,
       created_at,
       profiles:author_id ( username, avatar_url )
     `
@@ -70,6 +82,9 @@ export default async function ThreadPage({ params }: Props) {
           const postAuthor = Array.isArray(post.profiles)
             ? post.profiles[0]
             : post.profiles;
+          const isAuthor = Boolean(user && post.author_id === user.id);
+          const canEdit = isAuthor;
+          const canDelete = isAuthor || isAdmin;
 
           return (
             <li key={post.id} className="border rounded p-4">
@@ -85,6 +100,13 @@ export default async function ThreadPage({ params }: Props) {
                 </span>
               </div>
               <p className="whitespace-pre-wrap">{post.body}</p>
+              <PostActions
+                postId={post.id}
+                threadId={thread.id}
+                body={post.body}
+                canEdit={canEdit}
+                canDelete={canDelete}
+              />
             </li>
           );
         })}
