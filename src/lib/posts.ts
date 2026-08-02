@@ -43,9 +43,9 @@ export function buildPostTree(posts: FlatPost[]): PostNode[] {
     }
   }
 
-  for (const node of nodes.values()) {
+  Array.from(nodes.values()).forEach((node) => {
     node.children.sort(sortPosts);
-  }
+  });
 
   roots.sort(sortPosts);
   return roots;
