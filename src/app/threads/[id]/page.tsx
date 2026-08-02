@@ -65,11 +65,21 @@ export default async function ThreadPage({ params }: Props) {
 
   const author = Array.isArray(thread.profiles) ? thread.profiles[0] : thread.profiles;
   const tree = buildPostTree(
-    (posts ?? []).map((post) => ({
-      ...post,
-      parent_id: post.parent_id ?? null,
-      image_url: post.image_url ?? null,
-    }))
+    (posts ?? []).map((post) => {
+      const profiles = Array.isArray(post.profiles)
+        ? post.profiles[0] ?? null
+        : post.profiles ?? null;
+
+      return {
+        id: post.id,
+        body: post.body,
+        author_id: post.author_id,
+        created_at: post.created_at,
+        parent_id: post.parent_id ?? null,
+        image_url: post.image_url ?? null,
+        profiles,
+      };
+    })
   );
 
   return (
