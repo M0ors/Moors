@@ -13,6 +13,7 @@ const ALLOWED_TYPES: Record<string, string> = {
 };
 
 export async function updateAvatar(_prevState: unknown, formData: FormData) {
+  void _prevState;
   const supabase = createClient();
   const {
     data: { user },
@@ -82,7 +83,8 @@ export async function updateAvatar(_prevState: unknown, formData: FormData) {
   redirect("/profile");
 }
 
-export async function removeAvatar(_formData: FormData) {
+export async function removeAvatar(formData: FormData) {
+  void formData;
   const supabase = createClient();
   const {
     data: { user },
