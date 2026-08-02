@@ -3,8 +3,6 @@
 import { useFormState } from "react-dom";
 import { createReply } from "@/app/actions/threads";
 
-type FormState = { error?: string } | undefined;
-
 type Props = {
   threadId: string;
 };
