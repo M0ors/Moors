@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 type Props = {
   username?: string | null;
   avatarUrl?: string | null;
@@ -9,7 +11,7 @@ export function Avatar({ username, avatarUrl, size = 32 }: Props) {
 
   if (avatarUrl) {
     return (
-      <img
+      <Image
         src={avatarUrl}
         alt={username ? `${username}'s avatar` : "User avatar"}
         width={size}
