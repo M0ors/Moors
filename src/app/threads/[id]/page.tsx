@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AdminBadge } from "@/components/AdminBadge";
 import { Avatar } from "@/components/Avatar";
-import { PostActions } from "@/components/PostActions";
-import { ReplyForm } from "@/components/ReplyForm";
+import { ThreadDiscussion } from "@/components/ThreadDiscussion";
+import { buildPostTree } from "@/lib/posts";
 import { createClient } from "@/lib/supabase/server";
 
 type Props = {
@@ -32,7 +33,7 @@ export default async function ThreadPage({ params }: Props) {
       id,
       title,
       created_at,
-      profiles:author_id ( username, avatar_url )
+      profiles:author_id ( username, avatar_url, is_admin )
     `
     )
     .eq("id", params.id)
@@ -49,8 +50,10 @@ export default async function ThreadPage({ params }: Props) {
       id,
       body,
       author_id,
+      parent_id,
+      image_url,
       created_at,
-      profiles:author_id ( username, avatar_url )
+      profiles:author_id ( username, avatar_url, is_admin )
     `
     )
     .eq("thread_id", params.id)
@@ -61,6 +64,13 @@ export default async function ThreadPage({ params }: Props) {
   }
 
   const author = Array.isArray(thread.profiles) ? thread.profiles[0] : thread.profiles;
+  const tree = buildPostTree(
+    (posts ?? []).map((post) => ({
+      ...post,
+      parent_id: post.parent_id ?? null,
+      image_url: post.image_url ?? null,
+    }))
+  );
 
   return (
     <main>
@@ -69,56 +79,27 @@ export default async function ThreadPage({ params }: Props) {
       </p>
 
       <h1 className="text-2xl font-semibold mb-2">{thread.title}</h1>
-      <div className="text-sm text-neutral-600 mb-8 flex items-center gap-2">
+      <div className="text-sm text-neutral-600 mb-8 flex items-center gap-2 flex-wrap">
         <Avatar username={author?.username} avatarUrl={author?.avatar_url} size={24} />
-        <span>
-          started by {author?.username ?? "unknown"} ·{" "}
-          {new Date(thread.created_at).toLocaleString()}
+        <span className="inline-flex items-center gap-1.5 flex-wrap">
+          started by {author?.username ?? "unknown"}
+          {author?.is_admin ? <AdminBadge /> : null}
+          <span>· {new Date(thread.created_at).toLocaleString()}</span>
         </span>
       </div>
 
-      <ul className="space-y-6">
-        {posts?.map((post) => {
-          const postAuthor = Array.isArray(post.profiles)
-            ? post.profiles[0]
-            : post.profiles;
-          const isAuthor = Boolean(user && post.author_id === user.id);
-          const canEdit = isAuthor;
-          const canDelete = isAuthor || isAdmin;
+      <ThreadDiscussion
+        threadId={thread.id}
+        posts={tree}
+        currentUserId={user?.id ?? null}
+        isAdmin={isAdmin}
+      />
 
-          return (
-            <li key={post.id} className="border rounded p-4">
-              <div className="text-sm text-neutral-600 mb-2 flex items-center gap-2">
-                <Avatar
-                  username={postAuthor?.username}
-                  avatarUrl={postAuthor?.avatar_url}
-                  size={24}
-                />
-                <span>
-                  {postAuthor?.username ?? "unknown"} ·{" "}
-                  {new Date(post.created_at).toLocaleString()}
-                </span>
-              </div>
-              <p className="whitespace-pre-wrap">{post.body}</p>
-              <PostActions
-                postId={post.id}
-                threadId={thread.id}
-                body={post.body}
-                canEdit={canEdit}
-                canDelete={canDelete}
-              />
-            </li>
-          );
-        })}
-      </ul>
-
-      {user ? (
-        <ReplyForm threadId={thread.id} />
-      ) : (
+      {!user ? (
         <p className="mt-8 text-sm">
           <Link href="/login">Log in</Link> to reply.
         </p>
-      )}
+      ) : null}
     </main>
   );
 }

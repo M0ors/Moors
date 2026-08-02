@@ -21,7 +21,9 @@ export type Post = {
   id: string;
   thread_id: string;
   author_id: string;
+  parent_id: string | null;
   body: string;
+  image_url: string | null;
   created_at: string;
   updated_at: string;
   profiles?: Profile | null;

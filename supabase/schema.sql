@@ -21,13 +21,20 @@ create table public.posts (
   id uuid primary key default gen_random_uuid(),
   thread_id uuid not null references public.threads (id) on delete cascade,
   author_id uuid not null references public.profiles (id) on delete cascade,
-  body text not null check (char_length(body) between 1 and 10000),
+  parent_id uuid references public.posts (id) on delete cascade,
+  body text not null default '',
+  image_url text,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint posts_body_or_image_check check (
+    (char_length(trim(body)) between 1 and 10000)
+    or image_url is not null
+  )
 );
 
 create index threads_updated_at_idx on public.threads (updated_at desc);
 create index posts_thread_id_idx on public.posts (thread_id, created_at);
+create index posts_parent_id_idx on public.posts (parent_id);
 
 create or replace function public.handle_updated_at()
 returns trigger
@@ -107,10 +114,16 @@ returns trigger
 language plpgsql
 as $$
 begin
+  -- SQL Editor / service role have no JWT; allow those updates.
+  if auth.uid() is null then
+    return new;
+  end if;
+
   if not public.is_admin(auth.uid()) then
     new.is_admin := old.is_admin;
     new.is_banned := old.is_banned;
   end if;
+
   return new;
 end;
 $$;
@@ -194,5 +207,40 @@ create policy "Users can delete their own avatar"
   on storage.objects for delete
   using (
     bucket_id = 'avatars'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'post-images',
+  'post-images',
+  true,
+  5242880,
+  array['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+)
+on conflict (id) do nothing;
+
+create policy "Post images are publicly accessible"
+  on storage.objects for select
+  using (bucket_id = 'post-images');
+
+create policy "Users can upload post images"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'post-images'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+create policy "Users can update their post images"
+  on storage.objects for update
+  using (
+    bucket_id = 'post-images'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+create policy "Users can delete their post images"
+  on storage.objects for delete
+  using (
+    bucket_id = 'post-images'
     and auth.uid()::text = (storage.foldername(name))[1]
   );

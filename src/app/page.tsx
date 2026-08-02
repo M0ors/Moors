@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AdminBadge } from "@/components/AdminBadge";
 import { Avatar } from "@/components/Avatar";
 import { createClient } from "@/lib/supabase/server";
 
@@ -13,7 +14,7 @@ export default async function Home() {
       title,
       created_at,
       updated_at,
-      profiles:author_id ( username, avatar_url )
+      profiles:author_id ( username, avatar_url, is_admin )
     `
     )
     .order("updated_at", { ascending: false });
@@ -51,15 +52,19 @@ export default async function Home() {
                 <Link href={`/threads/${thread.id}`} className="font-medium block">
                   {thread.title}
                 </Link>
-                <div className="text-sm text-neutral-600 mt-1 flex items-center gap-2">
+                <div className="text-sm text-neutral-600 mt-1 flex items-center gap-2 flex-wrap">
                   <Avatar
                     username={author?.username}
                     avatarUrl={author?.avatar_url}
                     size={20}
                   />
-                  <span>
-                    by {author?.username ?? "unknown"} · {counts[thread.id] ?? 0}{" "}
-                    posts · updated {new Date(thread.updated_at).toLocaleString()}
+                  <span className="inline-flex items-center gap-1.5 flex-wrap">
+                    by {author?.username ?? "unknown"}
+                    {author?.is_admin ? <AdminBadge /> : null}
+                    <span>
+                      · {counts[thread.id] ?? 0} posts · updated{" "}
+                      {new Date(thread.updated_at).toLocaleString()}
+                    </span>
                   </span>
                 </div>
               </li>

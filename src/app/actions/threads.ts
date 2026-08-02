@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { getImageFile, uploadPostImage } from "@/lib/post-images";
 import { createClient } from "@/lib/supabase/server";
 
-export async function createThread(_prevState: unknown, formData: FormData) {
+async function requireActiveUser() {
   const supabase = createClient();
   const {
     data: { user },
@@ -21,14 +22,38 @@ export async function createThread(_prevState: unknown, formData: FormData) {
     .single();
 
   if (profile?.is_banned) {
-    return { error: "Your account is banned." };
+    return { supabase, user, error: "Your account is banned." as string };
+  }
+
+  return { supabase, user, error: null };
+}
+
+export async function createThread(_prevState: unknown, formData: FormData) {
+  void _prevState;
+  const { supabase, user, error: authError } = await requireActiveUser();
+  if (authError) {
+    return { error: authError };
   }
 
   const title = String(formData.get("title") ?? "").trim();
   const body = String(formData.get("body") ?? "").trim();
+  const imageFile = getImageFile(formData);
 
-  if (!title || !body) {
-    return { error: "Title and body are required." };
+  if (!title) {
+    return { error: "Title is required." };
+  }
+
+  if (!body && !imageFile) {
+    return { error: "Add a body or an image." };
+  }
+
+  let imageUrl: string | null = null;
+  if (imageFile) {
+    const uploaded = await uploadPostImage(supabase, user.id, imageFile);
+    if (uploaded.error) {
+      return { error: uploaded.error };
+    }
+    imageUrl = uploaded.publicUrl;
   }
 
   const { data: thread, error: threadError } = await supabase
@@ -44,7 +69,9 @@ export async function createThread(_prevState: unknown, formData: FormData) {
   const { error: postError } = await supabase.from("posts").insert({
     thread_id: thread.id,
     author_id: user.id,
-    body,
+    body: body || " ",
+    image_url: imageUrl,
+    parent_id: null,
   });
 
   if (postError) {
@@ -56,36 +83,52 @@ export async function createThread(_prevState: unknown, formData: FormData) {
 }
 
 export async function createReply(_prevState: unknown, formData: FormData) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_banned")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.is_banned) {
-    return { error: "Your account is banned." };
+  void _prevState;
+  const { supabase, user, error: authError } = await requireActiveUser();
+  if (authError) {
+    return { error: authError };
   }
 
   const threadId = String(formData.get("thread_id") ?? "");
+  const parentId = String(formData.get("parent_id") ?? "").trim() || null;
   const body = String(formData.get("body") ?? "").trim();
+  const imageFile = getImageFile(formData);
 
-  if (!threadId || !body) {
-    return { error: "Reply body is required." };
+  if (!threadId) {
+    return { error: "Thread is required." };
+  }
+
+  if (!body && !imageFile) {
+    return { error: "Add a reply or an image." };
+  }
+
+  if (parentId) {
+    const { data: parent } = await supabase
+      .from("posts")
+      .select("id, thread_id")
+      .eq("id", parentId)
+      .single();
+
+    if (!parent || parent.thread_id !== threadId) {
+      return { error: "Parent reply not found." };
+    }
+  }
+
+  let imageUrl: string | null = null;
+  if (imageFile) {
+    const uploaded = await uploadPostImage(supabase, user.id, imageFile);
+    if (uploaded.error) {
+      return { error: uploaded.error };
+    }
+    imageUrl = uploaded.publicUrl;
   }
 
   const { error } = await supabase.from("posts").insert({
     thread_id: threadId,
     author_id: user.id,
-    body,
+    body: body || " ",
+    image_url: imageUrl,
+    parent_id: parentId,
   });
 
   if (error) {
@@ -99,13 +142,9 @@ export async function createReply(_prevState: unknown, formData: FormData) {
 
 export async function updatePost(_prevState: unknown, formData: FormData) {
   void _prevState;
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
+  const { supabase, user, error: authError } = await requireActiveUser();
+  if (authError) {
+    return { error: authError };
   }
 
   const postId = String(formData.get("post_id") ?? "");
@@ -114,16 +153,6 @@ export async function updatePost(_prevState: unknown, formData: FormData) {
 
   if (!postId || !threadId || !body) {
     return { error: "Post body is required." };
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_banned")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.is_banned) {
-    return { error: "Your account is banned." };
   }
 
   const { error } = await supabase

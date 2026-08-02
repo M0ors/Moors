@@ -3,6 +3,7 @@ import { banUser, removeUser, unbanUser } from "@/app/actions/admin";
 import { requireAdmin } from "@/lib/auth";
 import { hasServiceRoleKey } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { AdminBadge } from "@/components/AdminBadge";
 import { Avatar } from "@/components/Avatar";
 
 export default async function AdminPage() {
@@ -50,13 +51,11 @@ export default async function AdminPage() {
                     size={36}
                   />
                   <div>
-                    <p className="font-medium">
+                    <p className="font-medium inline-flex items-center gap-2 flex-wrap">
                       {profile.username}
-                      {profile.is_admin ? (
-                        <span className="ml-2 text-xs text-neutral-500">admin</span>
-                      ) : null}
+                      {profile.is_admin ? <AdminBadge /> : null}
                       {profile.is_banned ? (
-                        <span className="ml-2 text-xs text-red-600">banned</span>
+                        <span className="text-xs text-red-600">banned</span>
                       ) : null}
                     </p>
                     <p className="text-sm text-neutral-600">

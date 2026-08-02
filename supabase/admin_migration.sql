@@ -23,10 +23,16 @@ returns trigger
 language plpgsql
 as $$
 begin
+  -- SQL Editor / service role have no JWT; allow those updates.
+  if auth.uid() is null then
+    return new;
+  end if;
+
   if not public.is_admin(auth.uid()) then
     new.is_admin := old.is_admin;
     new.is_banned := old.is_banned;
   end if;
+
   return new;
 end;
 $$;

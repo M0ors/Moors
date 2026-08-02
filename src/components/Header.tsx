@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/actions/auth";
+import { AdminBadge } from "@/components/AdminBadge";
 import { Avatar } from "@/components/Avatar";
 
 export async function Header() {
@@ -35,6 +36,7 @@ export async function Header() {
             <Link href="/profile" className="flex items-center gap-2 no-underline">
               <Avatar username={username} avatarUrl={avatarUrl} size={28} />
               <span className="underline">{username ?? user.email}</span>
+              {isAdmin ? <AdminBadge /> : null}
             </Link>
             <Link href="/threads/new">New thread</Link>
             {isAdmin ? <Link href="/admin">Admin</Link> : null}

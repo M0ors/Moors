@@ -2,6 +2,7 @@
 
 import { useFormState } from "react-dom";
 import { createThread } from "@/app/actions/threads";
+import { ImageField } from "@/components/ImageField";
 
 export function NewThreadForm() {
   const [state, formAction] = useFormState(createThread, undefined);
@@ -14,8 +15,9 @@ export function NewThreadForm() {
       </label>
       <label className="flex flex-col gap-1">
         Body
-        <textarea name="body" required rows={8} className="border p-2" />
+        <textarea name="body" rows={8} className="border p-2" />
       </label>
+      <ImageField />
       {state?.error ? <p className="text-red-600 text-sm">{state.error}</p> : null}
       <button type="submit">Create thread</button>
     </form>

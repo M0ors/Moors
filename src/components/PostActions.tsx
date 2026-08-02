@@ -54,7 +54,7 @@ export function PostActions({
   }
 
   return (
-    <div className="mt-3 flex gap-2 text-sm">
+    <div className="flex gap-2 text-sm">
       {canEdit ? (
         <button
           type="button"
