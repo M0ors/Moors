@@ -2,12 +2,11 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { togglePinPost } from "@/app/actions/threads";
-import { AdminBadge } from "@/components/AdminBadge";
 import { Avatar } from "@/components/Avatar";
 import { PostActions } from "@/components/PostActions";
 import { ReplyForm } from "@/components/ReplyForm";
+import { Username } from "@/components/Username";
 import { VoteButtons } from "@/components/VoteButtons";
 import type { PostNode } from "@/lib/posts";
 
@@ -64,12 +63,13 @@ function PostItem({
       <div className="text-sm text-neutral-600 mb-2 flex items-center gap-2 flex-wrap">
         <Avatar username={author?.username} avatarUrl={author?.avatar_url} size={24} />
         <span className="inline-flex items-center gap-1.5 flex-wrap">
-          {author?.username ? (
-            <Link href={`/u/${author.username}`}>{author.username}</Link>
-          ) : (
-            "unknown"
-          )}
-          {author?.is_admin ? <AdminBadge /> : null}
+          <Username
+            username={author?.username}
+            isAdmin={author?.is_admin}
+            color={author?.username_color}
+            countryCode={author?.country_code}
+            href={author?.username ? `/u/${author.username}` : null}
+          />
           {post.is_pinned ? (
             <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-100 text-amber-900">
               Pinned

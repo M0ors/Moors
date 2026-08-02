@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/actions/auth";
-import { AdminBadge } from "@/components/AdminBadge";
 import { Avatar } from "@/components/Avatar";
+import { Username } from "@/components/Username";
 
 export async function Header() {
   const supabase = createClient();
@@ -13,16 +13,20 @@ export async function Header() {
   let username: string | null = null;
   let avatarUrl: string | null = null;
   let isAdmin = false;
+  let usernameColor: string | null = null;
+  let countryCode: string | null = null;
 
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("username, avatar_url, is_admin")
+      .select("username, avatar_url, is_admin, username_color, country_code")
       .eq("id", user.id)
       .single();
     username = profile?.username ?? null;
     avatarUrl = profile?.avatar_url ?? null;
     isAdmin = Boolean(profile?.is_admin);
+    usernameColor = profile?.username_color ?? null;
+    countryCode = profile?.country_code ?? null;
   }
 
   return (
@@ -38,8 +42,16 @@ export async function Header() {
               className="flex items-center gap-2 no-underline"
             >
               <Avatar username={username} avatarUrl={avatarUrl} size={28} />
-              <span className="underline">{username ?? user.email}</span>
-              {isAdmin ? <AdminBadge /> : null}
+              {username ? (
+                <Username
+                  username={username}
+                  isAdmin={isAdmin}
+                  color={usernameColor}
+                  countryCode={countryCode}
+                />
+              ) : (
+                <span className="underline">{user.email}</span>
+              )}
             </Link>
             <Link href="/profile">Settings</Link>
             <Link href="/threads/new">New thread</Link>

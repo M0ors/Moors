@@ -27,9 +27,16 @@ export default async function SignUpPage() {
           <input name="email" type="email" required className="border p-2" />
         </label>
         <label className="flex flex-col gap-1">
+          Date of birth
+          <input name="date_of_birth" type="date" required className="border p-2" />
+        </label>
+        <label className="flex flex-col gap-1">
           Password
           <input name="password" type="password" required minLength={6} className="border p-2" />
         </label>
+        <p className="text-sm text-neutral-600">
+          You must be at least 13. NSFW threads are only shown to users 18+.
+        </p>
       </AuthForm>
       <p className="mt-4 text-sm">
         Already have an account? <Link href="/login">Log in</Link>

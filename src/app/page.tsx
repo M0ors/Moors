@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { AdminBadge } from "@/components/AdminBadge";
 import { Avatar } from "@/components/Avatar";
 import { Pagination } from "@/components/Pagination";
+import { Username } from "@/components/Username";
 import { VoteButtons } from "@/components/VoteButtons";
+import { isAtLeast18 } from "@/lib/age";
 import { parsePage, THREADS_PER_PAGE, totalPages } from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
 
@@ -30,6 +31,16 @@ export default async function Home({ searchParams }: Props) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  let canViewNsfw = false;
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("date_of_birth")
+      .eq("id", user.id)
+      .single();
+    canViewNsfw = isAtLeast18(profile?.date_of_birth);
+  }
+
   let query = supabase.from("threads").select(
     `
       id,
@@ -38,11 +49,16 @@ export default async function Home({ searchParams }: Props) {
       updated_at,
       like_count,
       dislike_count,
+      is_nsfw,
       author_id,
-      profiles:author_id ( username, avatar_url, is_admin )
+      profiles:author_id ( username, avatar_url, is_admin, username_color, country_code )
     `,
     { count: "exact" }
   );
+
+  if (!canViewNsfw) {
+    query = query.eq("is_nsfw", false);
+  }
 
   if (sort === "newest") {
     query = query.order("created_at", { ascending: false });
@@ -115,6 +131,12 @@ export default async function Home({ searchParams }: Props) {
         </div>
       </div>
 
+      {!canViewNsfw ? (
+        <p className="text-sm text-neutral-600 mb-4">
+          NSFW threads are hidden unless you are logged in and 18+.
+        </p>
+      ) : null}
+
       {!threads?.length ? (
         <p>No threads yet.</p>
       ) : (
@@ -129,6 +151,11 @@ export default async function Home({ searchParams }: Props) {
                 <div>
                   <Link href={`/threads/${thread.id}`} className="font-medium block">
                     {thread.title}
+                    {thread.is_nsfw ? (
+                      <span className="ml-2 text-xs font-semibold uppercase text-red-700">
+                        NSFW
+                      </span>
+                    ) : null}
                   </Link>
                   <div className="text-sm text-neutral-600 mt-1 flex items-center gap-2 flex-wrap">
                     <Avatar
@@ -138,12 +165,13 @@ export default async function Home({ searchParams }: Props) {
                     />
                     <span className="inline-flex items-center gap-1.5 flex-wrap">
                       by{" "}
-                      {author?.username ? (
-                        <Link href={`/u/${author.username}`}>{author.username}</Link>
-                      ) : (
-                        "unknown"
-                      )}
-                      {author?.is_admin ? <AdminBadge /> : null}
+                      <Username
+                        username={author?.username}
+                        isAdmin={author?.is_admin}
+                        color={author?.username_color}
+                        countryCode={author?.country_code}
+                        href={author?.username ? `/u/${author.username}` : null}
+                      />
                       <span>
                         · {counts[thread.id] ?? 0} posts · updated{" "}
                         {new Date(thread.updated_at).toLocaleString()}

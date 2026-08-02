@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AdminBadge } from "@/components/AdminBadge";
 import { Avatar } from "@/components/Avatar";
 import { Pagination } from "@/components/Pagination";
+import { Username } from "@/components/Username";
+import { countryName } from "@/lib/countries";
 import { parsePage, THREADS_PER_PAGE, totalPages } from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
 
@@ -20,7 +21,9 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, username, avatar_url, is_admin, created_at")
+    .select(
+      "id, username, avatar_url, is_admin, created_at, about_me, username_color, country_code"
+    )
     .eq("username", username)
     .maybeSingle();
 
@@ -53,6 +56,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
   }
 
   const pages = totalPages(count ?? 0, THREADS_PER_PAGE);
+  const country = countryName(profile.country_code);
 
   return (
     <main>
@@ -60,23 +64,35 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
         <Link href="/">← Back to threads</Link>
       </p>
 
-      <div className="flex items-center gap-4 mb-8">
+      <div className="flex items-center gap-4 mb-6">
         <Avatar
           username={profile.username}
           avatarUrl={profile.avatar_url}
           size={72}
         />
         <div>
-          <h1 className="text-2xl font-semibold inline-flex items-center gap-2">
-            {profile.username}
-            {profile.is_admin ? <AdminBadge /> : null}
+          <h1 className="text-2xl font-semibold">
+            <Username
+              username={profile.username}
+              isAdmin={profile.is_admin}
+              color={profile.username_color}
+              countryCode={profile.country_code}
+            />
           </h1>
           <p className="text-sm text-neutral-600 mt-1">
             Joined {new Date(profile.created_at).toLocaleDateString()} · {count ?? 0}{" "}
             posts
+            {country ? ` · ${country}` : ""}
           </p>
         </div>
       </div>
+
+      {profile.about_me ? (
+        <section className="mb-8">
+          <h2 className="font-medium mb-2">About</h2>
+          <p className="whitespace-pre-wrap text-sm">{profile.about_me}</p>
+        </section>
+      ) : null}
 
       <h2 className="font-medium mb-4">Posts</h2>
 

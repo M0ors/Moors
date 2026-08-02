@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { removeAvatar } from "@/app/actions/profile";
-import { AdminBadge } from "@/components/AdminBadge";
 import { Avatar } from "@/components/Avatar";
 import { AvatarUploadForm } from "@/components/AvatarUploadForm";
+import { ProfileSettingsForm } from "@/components/ProfileSettingsForm";
+import { Username } from "@/components/Username";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function ProfilePage() {
@@ -18,7 +19,9 @@ export default async function ProfilePage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("username, avatar_url, is_admin")
+    .select(
+      "username, avatar_url, is_admin, about_me, username_color, country_code, date_of_birth"
+    )
     .eq("id", user.id)
     .single();
 
@@ -37,9 +40,14 @@ export default async function ProfilePage() {
           size={72}
         />
         <div>
-          <p className="font-medium inline-flex items-center gap-2">
-            {profile?.username ?? "unknown"}
-            {profile?.is_admin ? <AdminBadge /> : null}
+          <p className="font-medium">
+            <Username
+              username={profile?.username}
+              isAdmin={profile?.is_admin}
+              color={profile?.username_color}
+              countryCode={profile?.country_code}
+              href={profile?.username ? `/u/${profile.username}` : null}
+            />
           </p>
           <p className="text-sm text-neutral-600">{user.email}</p>
         </div>
@@ -54,6 +62,13 @@ export default async function ProfilePage() {
           </button>
         </form>
       ) : null}
+
+      <ProfileSettingsForm
+        aboutMe={profile?.about_me}
+        usernameColor={profile?.username_color}
+        countryCode={profile?.country_code}
+        dateOfBirth={profile?.date_of_birth}
+      />
     </main>
   );
 }

@@ -12,7 +12,7 @@ export function ImageField({ label = "Image (optional)" }: Props) {
         accept="image/jpeg,image/png,image/webp,image/gif"
         className="border p-2"
       />
-      <span className="text-sm text-neutral-600">JPG, PNG, WebP, or GIF. Max 5MB.</span>
+      <span className="text-sm text-neutral-600">JPG, PNG, WebP, or GIF. Max 1MB.</span>
     </label>
   );
 }

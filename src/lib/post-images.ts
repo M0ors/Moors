@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export const MAX_POST_IMAGE_BYTES = 5 * 1024 * 1024;
+export const MAX_POST_IMAGE_BYTES = 1 * 1024 * 1024;
 
 const ALLOWED_TYPES: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -24,7 +24,7 @@ export async function uploadPostImage(
   file: File
 ) {
   if (file.size > MAX_POST_IMAGE_BYTES) {
-    return { error: "Image must be 5MB or smaller.", publicUrl: null as string | null };
+    return { error: "Image must be 1MB or smaller.", publicUrl: null as string | null };
   }
 
   const ext = ALLOWED_TYPES[file.type];

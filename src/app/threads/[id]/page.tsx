@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AdminBadge } from "@/components/AdminBadge";
 import { Avatar } from "@/components/Avatar";
 import { Pagination } from "@/components/Pagination";
 import { ThreadActions } from "@/components/ThreadActions";
 import { ThreadDiscussion } from "@/components/ThreadDiscussion";
+import { Username } from "@/components/Username";
 import { VoteButtons } from "@/components/VoteButtons";
+import { isAtLeast18 } from "@/lib/age";
 import { parsePage, ROOT_POSTS_PER_PAGE, totalPages } from "@/lib/pagination";
 import { buildPostTree } from "@/lib/posts";
 import { createClient } from "@/lib/supabase/server";
@@ -23,13 +24,16 @@ export default async function ThreadPage({ params, searchParams }: Props) {
   } = await supabase.auth.getUser();
 
   let isAdmin = false;
+  let canViewNsfw = false;
+
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("is_admin, is_banned")
+      .select("is_admin, is_banned, date_of_birth")
       .eq("id", user.id)
       .single();
     isAdmin = Boolean(profile?.is_admin);
+    canViewNsfw = isAtLeast18(profile?.date_of_birth);
   }
 
   const { data: thread, error: threadError } = await supabase
@@ -42,7 +46,8 @@ export default async function ThreadPage({ params, searchParams }: Props) {
       author_id,
       like_count,
       dislike_count,
-      profiles:author_id ( username, avatar_url, is_admin )
+      is_nsfw,
+      profiles:author_id ( username, avatar_url, is_admin, username_color, country_code )
     `
     )
     .eq("id", params.id)
@@ -50,6 +55,32 @@ export default async function ThreadPage({ params, searchParams }: Props) {
 
   if (threadError || !thread) {
     notFound();
+  }
+
+  if (thread.is_nsfw && !canViewNsfw) {
+    return (
+      <main>
+        <p className="mb-4">
+          <Link href="/">← Back to threads</Link>
+        </p>
+        <h1 className="text-2xl font-semibold mb-4">NSFW content</h1>
+        <p>
+          This thread is marked NSFW and is only visible to logged-in users aged
+          18+.
+        </p>
+        {!user ? (
+          <p className="mt-4 text-sm">
+            <Link href="/login">Log in</Link> and make sure your date of birth is
+            set in Settings.
+          </p>
+        ) : (
+          <p className="mt-4 text-sm">
+            Add or update your date of birth in{" "}
+            <Link href="/profile">Settings</Link>.
+          </p>
+        )}
+      </main>
+    );
   }
 
   const { data: posts, error: postsError } = await supabase
@@ -65,7 +96,7 @@ export default async function ThreadPage({ params, searchParams }: Props) {
       like_count,
       dislike_count,
       created_at,
-      profiles:author_id ( username, avatar_url, is_admin )
+      profiles:author_id ( username, avatar_url, is_admin, username_color, country_code )
     `
     )
     .eq("thread_id", params.id)
@@ -141,17 +172,25 @@ export default async function ThreadPage({ params, searchParams }: Props) {
         <Link href="/">← Back to threads</Link>
       </p>
 
-      <h1 className="text-2xl font-semibold mb-2">{thread.title}</h1>
+      <h1 className="text-2xl font-semibold mb-2">
+        {thread.title}
+        {thread.is_nsfw ? (
+          <span className="ml-2 text-xs font-semibold uppercase text-red-700 align-middle">
+            NSFW
+          </span>
+        ) : null}
+      </h1>
       <div className="text-sm text-neutral-600 mb-4 flex items-center gap-2 flex-wrap">
         <Avatar username={author?.username} avatarUrl={author?.avatar_url} size={24} />
         <span className="inline-flex items-center gap-1.5 flex-wrap">
           started by{" "}
-          {author?.username ? (
-            <Link href={`/u/${author.username}`}>{author.username}</Link>
-          ) : (
-            "unknown"
-          )}
-          {author?.is_admin ? <AdminBadge /> : null}
+          <Username
+            username={author?.username}
+            isAdmin={author?.is_admin}
+            color={author?.username_color}
+            countryCode={author?.country_code}
+            href={author?.username ? `/u/${author.username}` : null}
+          />
           <span>· {new Date(thread.created_at).toLocaleString()}</span>
         </span>
       </div>
@@ -169,8 +208,10 @@ export default async function ThreadPage({ params, searchParams }: Props) {
       <ThreadActions
         threadId={thread.id}
         title={thread.title}
+        isNsfw={Boolean(thread.is_nsfw)}
         canEdit={isOp}
         canDelete={isOp || isAdmin}
+        canToggleNsfw={isOp || isAdmin}
       />
 
       <div className="mt-8">

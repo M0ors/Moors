@@ -12,6 +12,8 @@ export type PostNode = {
     username?: string | null;
     avatar_url?: string | null;
     is_admin?: boolean | null;
+    username_color?: string | null;
+    country_code?: string | null;
   } | null;
   children: PostNode[];
 };

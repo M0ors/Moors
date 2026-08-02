@@ -37,6 +37,7 @@ export async function createThread(_prevState: unknown, formData: FormData) {
 
   const title = String(formData.get("title") ?? "").trim();
   const body = String(formData.get("body") ?? "").trim();
+  const isNsfw = formData.get("is_nsfw") === "on";
   const imageFile = getImageFile(formData);
 
   if (!title) {
@@ -58,7 +59,7 @@ export async function createThread(_prevState: unknown, formData: FormData) {
 
   const { data: thread, error: threadError } = await supabase
     .from("threads")
-    .insert({ title, author_id: user.id })
+    .insert({ title, author_id: user.id, is_nsfw: isNsfw })
     .select("id")
     .single();
 
@@ -327,6 +328,52 @@ export async function togglePinPost(formData: FormData) {
     throw new Error(error.message);
   }
 
+  revalidatePath(`/threads/${threadId}`);
+  redirect(`/threads/${threadId}`);
+}
+
+export async function toggleThreadNsfw(formData: FormData) {
+  void formData;
+  const { supabase, user, error: authError } = await requireActiveUser();
+  if (authError) {
+    throw new Error(authError);
+  }
+
+  const threadId = String(formData.get("thread_id") ?? "");
+  const nextNsfw = String(formData.get("is_nsfw") ?? "") === "true";
+
+  if (!threadId) {
+    return;
+  }
+
+  const { data: thread } = await supabase
+    .from("threads")
+    .select("author_id")
+    .eq("id", threadId)
+    .single();
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", user.id)
+    .single();
+
+  const canModerate = Boolean(profile?.is_admin || thread?.author_id === user.id);
+  if (!canModerate) {
+    throw new Error("Only the thread author or an admin can change NSFW.");
+  }
+
+  let query = supabase.from("threads").update({ is_nsfw: nextNsfw }).eq("id", threadId);
+  if (!profile?.is_admin) {
+    query = query.eq("author_id", user.id);
+  }
+
+  const { error } = await query;
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/");
   revalidatePath(`/threads/${threadId}`);
   redirect(`/threads/${threadId}`);
 }
