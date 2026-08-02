@@ -211,3 +211,122 @@ export async function deletePost(formData: FormData) {
   revalidatePath("/");
   redirect(`/threads/${threadId}`);
 }
+
+export async function updateThread(_prevState: unknown, formData: FormData) {
+  void _prevState;
+  const { supabase, user, error: authError } = await requireActiveUser();
+  if (authError) {
+    return { error: authError };
+  }
+
+  const threadId = String(formData.get("thread_id") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
+
+  if (!threadId || !title) {
+    return { error: "Title is required." };
+  }
+
+  if (title.length > 200) {
+    return { error: "Title must be 200 characters or less." };
+  }
+
+  const { error } = await supabase
+    .from("threads")
+    .update({ title })
+    .eq("id", threadId)
+    .eq("author_id", user.id);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/");
+  revalidatePath(`/threads/${threadId}`);
+  redirect(`/threads/${threadId}`);
+}
+
+export async function deleteThread(formData: FormData) {
+  void formData;
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const threadId = String(formData.get("thread_id") ?? "");
+  if (!threadId) {
+    return;
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_admin, is_banned")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.is_banned) {
+    throw new Error("Your account is banned.");
+  }
+
+  let query = supabase.from("threads").delete().eq("id", threadId);
+  if (!profile?.is_admin) {
+    query = query.eq("author_id", user.id);
+  }
+
+  const { error } = await query;
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/");
+  redirect("/");
+}
+
+export async function togglePinPost(formData: FormData) {
+  void formData;
+  const { supabase, user, error: authError } = await requireActiveUser();
+  if (authError) {
+    throw new Error(authError);
+  }
+
+  const postId = String(formData.get("post_id") ?? "");
+  const threadId = String(formData.get("thread_id") ?? "");
+  const nextPinned = String(formData.get("is_pinned") ?? "") === "true";
+
+  if (!postId || !threadId) {
+    return;
+  }
+
+  const { data: thread } = await supabase
+    .from("threads")
+    .select("author_id")
+    .eq("id", threadId)
+    .single();
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", user.id)
+    .single();
+
+  const canPin = Boolean(profile?.is_admin || thread?.author_id === user.id);
+  if (!canPin) {
+    throw new Error("Only the thread author or an admin can pin replies.");
+  }
+
+  const { error } = await supabase
+    .from("posts")
+    .update({ is_pinned: nextPinned })
+    .eq("id", postId)
+    .eq("thread_id", threadId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath(`/threads/${threadId}`);
+  redirect(`/threads/${threadId}`);
+}

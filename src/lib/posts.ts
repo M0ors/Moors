@@ -4,6 +4,9 @@ export type PostNode = {
   author_id: string;
   parent_id: string | null;
   image_url: string | null;
+  is_pinned: boolean;
+  like_count: number;
+  dislike_count: number;
   created_at: string;
   profiles?: {
     username?: string | null;
@@ -14,6 +17,13 @@ export type PostNode = {
 };
 
 type FlatPost = Omit<PostNode, "children">;
+
+function sortPosts(a: PostNode, b: PostNode) {
+  if (a.is_pinned !== b.is_pinned) {
+    return a.is_pinned ? -1 : 1;
+  }
+  return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+}
 
 export function buildPostTree(posts: FlatPost[]): PostNode[] {
   const nodes = new Map<string, PostNode>();
@@ -33,5 +43,10 @@ export function buildPostTree(posts: FlatPost[]): PostNode[] {
     }
   }
 
+  for (const node of nodes.values()) {
+    node.children.sort(sortPosts);
+  }
+
+  roots.sort(sortPosts);
   return roots;
 }

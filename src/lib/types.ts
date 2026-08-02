@@ -13,6 +13,8 @@ export type Thread = {
   author_id: string;
   created_at: string;
   updated_at: string;
+  like_count: number;
+  dislike_count: number;
   profiles?: Profile | null;
   post_count?: number;
 };
@@ -24,6 +26,9 @@ export type Post = {
   parent_id: string | null;
   body: string;
   image_url: string | null;
+  is_pinned: boolean;
+  like_count: number;
+  dislike_count: number;
   created_at: string;
   updated_at: string;
   profiles?: Profile | null;

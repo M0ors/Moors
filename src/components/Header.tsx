@@ -33,11 +33,15 @@ export async function Header() {
       <nav className="flex items-center gap-4 text-sm">
         {user ? (
           <>
-            <Link href="/profile" className="flex items-center gap-2 no-underline">
+            <Link
+              href={username ? `/u/${username}` : "/profile"}
+              className="flex items-center gap-2 no-underline"
+            >
               <Avatar username={username} avatarUrl={avatarUrl} size={28} />
               <span className="underline">{username ?? user.email}</span>
               {isAdmin ? <AdminBadge /> : null}
             </Link>
+            <Link href="/profile">Settings</Link>
             <Link href="/threads/new">New thread</Link>
             {isAdmin ? <Link href="/admin">Admin</Link> : null}
             <form action={signOut}>
