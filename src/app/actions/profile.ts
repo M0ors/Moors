@@ -82,7 +82,7 @@ export async function updateAvatar(_prevState: unknown, formData: FormData) {
   redirect("/profile");
 }
 
-export async function removeAvatar() {
+export async function removeAvatar(_formData: FormData) {
   const supabase = createClient();
   const {
     data: { user },
@@ -106,7 +106,7 @@ export async function removeAvatar() {
     .eq("id", user.id);
 
   if (error) {
-    return { error: error.message };
+    throw new Error(error.message);
   }
 
   revalidatePath("/");
