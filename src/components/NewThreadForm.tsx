@@ -3,8 +3,6 @@
 import { useFormState } from "react-dom";
 import { createThread } from "@/app/actions/threads";
 
-type FormState = { error?: string } | undefined;
-
 export function NewThreadForm() {
   const [state, formAction] = useFormState(createThread, undefined);
 
