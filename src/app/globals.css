@@ -19,8 +19,12 @@ textarea {
   @apply rounded;
 }
 
+.badge-marquee {
+  position: relative;
+}
+
 .badge-marquee-track {
-  animation: badge-marquee 40s linear infinite;
+  animation: badge-marquee 35s linear infinite;
 }
 
 @keyframes badge-marquee {
@@ -28,8 +32,6 @@ textarea {
     transform: translateX(0);
   }
   to {
-    /* Each group is min 100% wide; -50% scrolls one full group so badges
-       enter continuously from the right edge of the bar. */
     transform: translateX(-50%);
   }
 }
