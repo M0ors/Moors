@@ -20,7 +20,18 @@ export default async function SignUpPage() {
       <AuthForm action={signUp} submitLabel="Create account">
         <label className="flex flex-col gap-1">
           Username
-          <input name="username" required minLength={3} maxLength={24} className="border p-2" />
+          <input
+            name="username"
+            required
+            minLength={3}
+            maxLength={24}
+            pattern="^[A-Za-z0-9._]{3,24}$"
+            title="Letters, numbers, dots, and underscores only"
+            className="border p-2"
+          />
+          <span className="text-sm text-neutral-600">
+            Letters, numbers, dots, and underscores only — no spaces.
+          </span>
         </label>
         <label className="flex flex-col gap-1">
           Email

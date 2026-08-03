@@ -6,6 +6,7 @@ import { Avatar } from "@/components/Avatar";
 import { AvatarUploadForm } from "@/components/AvatarUploadForm";
 import { ProfileSettingsForm } from "@/components/ProfileSettingsForm";
 import { Username } from "@/components/Username";
+import { ensureStaffBadge } from "@/lib/award-badges";
 import { createClient } from "@/lib/supabase/server";
 
 type Props = {
@@ -25,17 +26,40 @@ export default async function ProfilePage({ searchParams }: Props) {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "username, avatar_url, is_admin, about_me, username_color, country_code, date_of_birth, nsfw_enabled"
+      "username, avatar_url, is_admin, about_me, username_color, country_code, date_of_birth, nsfw_enabled, top_likes, top_dislikes, display_badge_id"
     )
     .eq("id", user.id)
     .single();
 
-  const { data: pendingRequest } = await supabase
-    .from("access_requests")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("status", "pending")
-    .maybeSingle();
+  if (profile?.is_admin) {
+    await ensureStaffBadge(supabase, user.id, true);
+  }
+
+  const [{ data: pendingRequest }, { data: ownedBadgeRows }] = await Promise.all([
+    supabase
+      .from("access_requests")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("status", "pending")
+      .maybeSingle(),
+    supabase
+      .from("user_badges")
+      .select("badge_id, badges:badge_id ( id, slug, name, image_url, is_nsfw )")
+      .eq("user_id", user.id),
+  ]);
+
+  const ownedBadges = (ownedBadgeRows ?? [])
+    .map((row) => {
+      const badge = Array.isArray(row.badges) ? row.badges[0] : row.badges;
+      return badge;
+    })
+    .filter(Boolean) as {
+    id: string;
+    slug: string;
+    name: string;
+    image_url?: string | null;
+    is_nsfw?: boolean | null;
+  }[];
 
   return (
     <main>
@@ -84,10 +108,16 @@ export default async function ProfilePage({ searchParams }: Props) {
         usernameColor={profile?.username_color}
         countryCode={profile?.country_code}
         dateOfBirth={profile?.date_of_birth}
-        nsfwEnabled={profile?.nsfw_enabled}
+        topLikes={profile?.top_likes}
+        topDislikes={profile?.top_dislikes}
+        ownedBadges={ownedBadges}
+        displayBadgeId={profile?.display_badge_id}
       />
 
-      <AccessRequestForm pending={Boolean(pendingRequest)} />
+      <AccessRequestForm
+        pending={Boolean(pendingRequest)}
+        hasNsfwAccess={Boolean(profile?.nsfw_enabled)}
+      />
     </main>
   );
 }

@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { onReplyCreated, onThreadCreated } from "@/lib/award-badges";
+import { canAccessAdultContent } from "@/lib/nsfw";
 import { getImageFile, uploadPostImage } from "@/lib/post-images";
 import { createClient } from "@/lib/supabase/server";
 
@@ -17,20 +19,20 @@ async function requireActiveUser() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("is_banned")
+    .select("is_banned, date_of_birth, nsfw_enabled")
     .eq("id", user.id)
     .single();
 
   if (profile?.is_banned) {
-    return { supabase, user, error: "Your account is banned." as string };
+    return { supabase, user, profile, error: "Your account is banned." as string };
   }
 
-  return { supabase, user, error: null };
+  return { supabase, user, profile, error: null };
 }
 
 export async function createThread(_prevState: unknown, formData: FormData) {
   void _prevState;
-  const { supabase, user, error: authError } = await requireActiveUser();
+  const { supabase, user, profile, error: authError } = await requireActiveUser();
   if (authError) {
     return { error: authError };
   }
@@ -38,6 +40,8 @@ export async function createThread(_prevState: unknown, formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   const body = String(formData.get("body") ?? "").trim();
   const boardSlug = String(formData.get("board") ?? "general").trim();
+  const subBoardSlug = String(formData.get("sub_board") ?? "").trim();
+  const wantAnonymous = formData.get("anonymous") === "on";
   const imageFile = getImageFile(formData);
 
   if (!title) {
@@ -46,6 +50,10 @@ export async function createThread(_prevState: unknown, formData: FormData) {
 
   if (!body && !imageFile) {
     return { error: "Add a body or an image." };
+  }
+
+  if (!subBoardSlug) {
+    return { error: "Choose a sub-board." };
   }
 
   const { data: board } = await supabase
@@ -58,22 +66,46 @@ export async function createThread(_prevState: unknown, formData: FormData) {
     return { error: "Board not found." };
   }
 
-  if (board.is_adult) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("date_of_birth, nsfw_enabled")
-      .eq("id", user.id)
-      .single();
-    const { canAccessAdultContent } = await import("@/lib/nsfw");
+  const { data: subBoard } = await supabase
+    .from("sub_boards")
+    .select(
+      "id, slug, is_adult, max_threads_per_user, op_only_replies, allow_anonymous, board_id"
+    )
+    .eq("board_id", board.id)
+    .eq("slug", subBoardSlug)
+    .single();
+
+  if (!subBoard) {
+    return { error: "Sub-board not found." };
+  }
+
+  const needsAdult = board.is_adult || subBoard.is_adult;
+  if (needsAdult) {
     if (
       !canAccessAdultContent({
         dateOfBirth: profile?.date_of_birth,
         nsfwEnabled: profile?.nsfw_enabled,
       })
     ) {
-      return { error: "Adult board requires NSFW access (18+)." };
+      return { error: "This sub-board requires NSFW access (18+)." };
     }
   }
+
+  if (subBoard.max_threads_per_user != null) {
+    const { count } = await supabase
+      .from("threads")
+      .select("id", { count: "exact", head: true })
+      .eq("author_id", user.id)
+      .eq("sub_board_id", subBoard.id);
+
+    if ((count ?? 0) >= subBoard.max_threads_per_user) {
+      return {
+        error: `You can only create ${subBoard.max_threads_per_user} thread(s) in this sub-board.`,
+      };
+    }
+  }
+
+  const isAnonymous = Boolean(wantAnonymous && subBoard.allow_anonymous);
 
   let imageUrl: string | null = null;
   if (imageFile) {
@@ -90,7 +122,9 @@ export async function createThread(_prevState: unknown, formData: FormData) {
       title,
       author_id: user.id,
       board_id: board.id,
-      is_nsfw: board.is_adult,
+      sub_board_id: subBoard.id,
+      is_nsfw: needsAdult,
+      is_anonymous: isAnonymous,
     })
     .select("id")
     .single();
@@ -112,14 +146,17 @@ export async function createThread(_prevState: unknown, formData: FormData) {
     return { error: postError.message };
   }
 
+  await onThreadCreated(supabase, user.id, subBoard.slug);
+
   revalidatePath("/");
   revalidatePath(`/boards/${board.slug}`);
+  revalidatePath(`/boards/${board.slug}/${subBoard.slug}`);
   redirect(`/threads/${thread.id}`);
 }
 
 export async function createReply(_prevState: unknown, formData: FormData) {
   void _prevState;
-  const { supabase, user, error: authError } = await requireActiveUser();
+  const { supabase, user, profile, error: authError } = await requireActiveUser();
   if (authError) {
     return { error: authError };
   }
@@ -139,7 +176,15 @@ export async function createReply(_prevState: unknown, formData: FormData) {
 
   const { data: thread } = await supabase
     .from("threads")
-    .select("id, board_id, boards:board_id ( slug, is_adult )")
+    .select(
+      `
+      id,
+      author_id,
+      board_id,
+      boards:board_id ( slug, is_adult ),
+      sub_boards:sub_board_id ( slug, is_adult, op_only_replies )
+    `
+    )
     .eq("id", threadId)
     .single();
 
@@ -148,21 +193,24 @@ export async function createReply(_prevState: unknown, formData: FormData) {
   }
 
   const board = Array.isArray(thread.boards) ? thread.boards[0] : thread.boards;
-  if (board?.is_adult) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("date_of_birth, nsfw_enabled")
-      .eq("id", user.id)
-      .single();
-    const { canAccessAdultContent } = await import("@/lib/nsfw");
+  const subBoard = Array.isArray(thread.sub_boards)
+    ? thread.sub_boards[0]
+    : thread.sub_boards;
+
+  const needsAdult = Boolean(board?.is_adult || subBoard?.is_adult);
+  if (needsAdult) {
     if (
       !canAccessAdultContent({
         dateOfBirth: profile?.date_of_birth,
         nsfwEnabled: profile?.nsfw_enabled,
       })
     ) {
-      return { error: "Adult board requires NSFW access (18+)." };
+      return { error: "Adult content requires NSFW access (18+)." };
     }
+  }
+
+  if (subBoard?.op_only_replies && thread.author_id !== user.id) {
+    return { error: "Only the original poster can reply in this sub-board." };
   }
 
   if (parentId) {
@@ -199,10 +247,15 @@ export async function createReply(_prevState: unknown, formData: FormData) {
     return { error: error.message };
   }
 
+  await onReplyCreated(supabase, user.id, thread.author_id);
+
   revalidatePath(`/threads/${threadId}`);
   revalidatePath("/");
   if (board?.slug) {
     revalidatePath(`/boards/${board.slug}`);
+    if (subBoard?.slug) {
+      revalidatePath(`/boards/${board.slug}/${subBoard.slug}`);
+    }
   }
   redirect(`/threads/${threadId}`);
 }

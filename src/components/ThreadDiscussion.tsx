@@ -8,6 +8,7 @@ import { PostImage } from "@/components/PostImage";
 import { ReplyForm } from "@/components/ReplyForm";
 import { Username } from "@/components/Username";
 import { VoteButtons } from "@/components/VoteButtons";
+import { censorText } from "@/lib/censor";
 import type { PostNode } from "@/lib/posts";
 
 type Props = {
@@ -17,11 +18,20 @@ type Props = {
   currentUserId: string | null;
   isAdmin: boolean;
   canViewNsfwProfiles: boolean;
+  canReply: boolean;
+  threadIsAnonymous: boolean;
   userVotes: Record<string, number>;
   redirectTo: string;
 };
 
 const MAX_INDENT = 5;
+
+function resolveBadge(author: PostNode["profiles"]) {
+  const badge = Array.isArray(author?.display_badge)
+    ? author?.display_badge[0]
+    : author?.display_badge;
+  return badge ?? null;
+}
 
 function PostItem({
   post,
@@ -31,6 +41,8 @@ function PostItem({
   currentUserId,
   isAdmin,
   canViewNsfwProfiles,
+  canReply,
+  threadIsAnonymous,
   userVotes,
   redirectTo,
   replyTo,
@@ -43,6 +55,8 @@ function PostItem({
   currentUserId: string | null;
   isAdmin: boolean;
   canViewNsfwProfiles: boolean;
+  canReply: boolean;
+  threadIsAnonymous: boolean;
   userVotes: Record<string, number>;
   redirectTo: string;
   replyTo: string | null;
@@ -57,6 +71,12 @@ function PostItem({
   const bodyText = post.body.trim();
   const blurAvatar = Boolean(author?.nsfw_enabled) && !canViewNsfwProfiles;
   const canPreviewPending = isAuthor || isAdmin;
+  const showAsAnon =
+    threadIsAnonymous &&
+    post.author_id === threadAuthorId &&
+    !isAuthor &&
+    !isAdmin;
+  const badge = resolveBadge(author);
 
   return (
     <li
@@ -66,20 +86,29 @@ function PostItem({
       style={{ marginLeft: indent * 24 }}
     >
       <div className="text-sm text-neutral-600 mb-2 flex items-center gap-2 flex-wrap">
-        <Avatar
-          username={author?.username}
-          avatarUrl={author?.avatar_url}
-          size={24}
-          blurred={blurAvatar}
-        />
-        <span className="inline-flex items-center gap-1.5 flex-wrap">
-          <Username
+        {!showAsAnon ? (
+          <Avatar
             username={author?.username}
-            isAdmin={author?.is_admin}
-            color={author?.username_color}
-            countryCode={author?.country_code}
-            href={author?.username ? `/u/${author.username}` : null}
+            avatarUrl={author?.avatar_url}
+            size={24}
+            blurred={blurAvatar}
           />
+        ) : null}
+        <span className="inline-flex items-center gap-1.5 flex-wrap">
+          {showAsAnon ? (
+            <span>Anonymous</span>
+          ) : (
+            <Username
+              username={author?.username}
+              isAdmin={author?.is_admin}
+              color={author?.username_color}
+              countryCode={author?.country_code}
+              href={author?.username ? `/u/${author.username}` : null}
+              badge={
+                badge && (!badge.is_nsfw || canViewNsfwProfiles) ? badge : null
+              }
+            />
+          )}
           {post.is_pinned ? (
             <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-100 text-amber-900">
               Pinned
@@ -89,7 +118,11 @@ function PostItem({
         </span>
       </div>
 
-      {bodyText ? <p className="whitespace-pre-wrap">{bodyText}</p> : null}
+      {bodyText ? (
+        <p className="whitespace-pre-wrap">
+          {censorText(bodyText, canViewNsfwProfiles)}
+        </p>
+      ) : null}
 
       <PostImage
         imageUrl={post.image_url}
@@ -107,7 +140,7 @@ function PostItem({
           redirectTo={redirectTo}
           canVote={Boolean(currentUserId)}
         />
-        {currentUserId ? (
+        {currentUserId && canReply ? (
           <button
             type="button"
             className="!bg-white !text-neutral-900 !px-2 !py-1 text-sm"
@@ -139,7 +172,7 @@ function PostItem({
         />
       </div>
 
-      {replyTo === post.id && currentUserId ? (
+      {replyTo === post.id && currentUserId && canReply ? (
         <div className="mt-4 pl-3 border-l-2 border-neutral-300">
           <ReplyForm
             threadId={threadId}
@@ -162,6 +195,8 @@ function PostItem({
               currentUserId={currentUserId}
               isAdmin={isAdmin}
               canViewNsfwProfiles={canViewNsfwProfiles}
+              canReply={canReply}
+              threadIsAnonymous={threadIsAnonymous}
               userVotes={userVotes}
               redirectTo={redirectTo}
               replyTo={replyTo}
@@ -181,6 +216,8 @@ export function ThreadDiscussion({
   currentUserId,
   isAdmin,
   canViewNsfwProfiles,
+  canReply,
+  threadIsAnonymous,
   userVotes,
   redirectTo,
 }: Props) {
@@ -199,6 +236,8 @@ export function ThreadDiscussion({
             currentUserId={currentUserId}
             isAdmin={isAdmin}
             canViewNsfwProfiles={canViewNsfwProfiles}
+            canReply={canReply}
+            threadIsAnonymous={threadIsAnonymous}
             userVotes={userVotes}
             redirectTo={redirectTo}
             replyTo={replyTo}
@@ -207,11 +246,15 @@ export function ThreadDiscussion({
         ))}
       </ul>
 
-      {currentUserId ? (
+      {currentUserId && canReply ? (
         <div className="mt-8">
           <h2 className="font-medium mb-3">Reply to thread</h2>
           <ReplyForm threadId={threadId} />
         </div>
+      ) : currentUserId && !canReply ? (
+        <p className="mt-8 text-sm text-neutral-600">
+          Only the original poster can reply in this sub-board.
+        </p>
       ) : null}
     </div>
   );

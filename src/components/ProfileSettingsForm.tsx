@@ -2,6 +2,8 @@
 
 import { useFormState } from "react-dom";
 import { updateProfileDetails } from "@/app/actions/profile";
+import { BadgeIcon } from "@/components/BadgeIcon";
+import type { BadgeRow } from "@/lib/badges";
 import { USERNAME_COLOR_PRESETS } from "@/lib/colors";
 import { COUNTRIES } from "@/lib/countries";
 
@@ -10,7 +12,10 @@ type Props = {
   usernameColor?: string | null;
   countryCode?: string | null;
   dateOfBirth?: string | null;
-  nsfwEnabled?: boolean | null;
+  topLikes?: string[] | null;
+  topDislikes?: string[] | null;
+  ownedBadges?: BadgeRow[];
+  displayBadgeId?: string | null;
 };
 
 export function ProfileSettingsForm({
@@ -18,9 +23,14 @@ export function ProfileSettingsForm({
   usernameColor,
   countryCode,
   dateOfBirth,
-  nsfwEnabled,
+  topLikes = [],
+  topDislikes = [],
+  ownedBadges = [],
+  displayBadgeId,
 }: Props) {
   const [state, formAction] = useFormState(updateProfileDetails, undefined);
+  const likes = topLikes ?? [];
+  const dislikes = topDislikes ?? [];
 
   return (
     <form action={formAction} className="flex flex-col gap-4 max-w-xl mt-8">
@@ -47,25 +57,71 @@ export function ProfileSettingsForm({
           className="border p-2"
         />
         <span className="text-sm text-neutral-600">
-          Required for Adult / NSFW access (must be 18+).
+          Required for Adult / NSFW access (must be 18+). Request access below
+          after setting this.
         </span>
       </label>
 
-      <label className="flex items-start gap-2">
-        <input
-          type="checkbox"
-          name="nsfw_enabled"
-          defaultChecked={Boolean(nsfwEnabled)}
-          className="mt-1"
-        />
-        <span>
-          <span className="font-medium">Enable NSFW content</span>
-          <span className="block text-sm text-neutral-600">
-            Shows the Adult board and lets you view NSFW profiles. You must be
-            18+ with a date of birth set.
-          </span>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="font-medium text-sm">Top 3 likes (optional)</legend>
+        {[0, 1, 2].map((i) => (
+          <input
+            key={`like-${i}`}
+            name={`top_like_${i + 1}`}
+            maxLength={40}
+            defaultValue={likes[i] ?? ""}
+            className="border p-2"
+            placeholder={`Like #${i + 1}`}
+          />
+        ))}
+      </fieldset>
+
+      <fieldset className="flex flex-col gap-2">
+        <legend className="font-medium text-sm">Top 3 dislikes (optional)</legend>
+        {[0, 1, 2].map((i) => (
+          <input
+            key={`dislike-${i}`}
+            name={`top_dislike_${i + 1}`}
+            maxLength={40}
+            defaultValue={dislikes[i] ?? ""}
+            className="border p-2"
+            placeholder={`Dislike #${i + 1}`}
+          />
+        ))}
+      </fieldset>
+
+      <label className="flex flex-col gap-1">
+        Display badge
+        <select
+          name="display_badge_id"
+          defaultValue={displayBadgeId ?? ""}
+          className="border p-2"
+        >
+          <option value="">No badge</option>
+          {ownedBadges.map((badge) => (
+            <option key={badge.id} value={badge.id}>
+              {badge.name}
+            </option>
+          ))}
+        </select>
+        <span className="text-sm text-neutral-600">
+          One badge shows next to your username. You can earn more over time.
         </span>
       </label>
+
+      {ownedBadges.length ? (
+        <div className="flex flex-wrap gap-2">
+          {ownedBadges.map((badge) => (
+            <span
+              key={badge.id}
+              className="inline-flex items-center gap-1 text-xs border px-2 py-1"
+            >
+              <BadgeIcon badge={badge} size={14} />
+              {badge.name}
+            </span>
+          ))}
+        </div>
+      ) : null}
 
       <label className="flex flex-col gap-1">
         Country flag (optional)

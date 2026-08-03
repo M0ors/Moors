@@ -1,3 +1,5 @@
+import type { BadgeRow } from "@/lib/badges";
+
 export type PostNode = {
   id: string;
   body: string;
@@ -16,6 +18,7 @@ export type PostNode = {
     username_color?: string | null;
     country_code?: string | null;
     nsfw_enabled?: boolean | null;
+    display_badge?: BadgeRow | BadgeRow[] | null;
   } | null;
   children: PostNode[];
 };

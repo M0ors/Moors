@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { AdminBadge } from "@/components/AdminBadge";
+import { BadgeIcon } from "@/components/BadgeIcon";
+import type { BadgeRow } from "@/lib/badges";
 import { countryFlag } from "@/lib/countries";
 
 type Props = {
@@ -9,6 +11,7 @@ type Props = {
   countryCode?: string | null;
   href?: string | null;
   showBadge?: boolean;
+  badge?: BadgeRow | null;
 };
 
 export function Username({
@@ -18,6 +21,7 @@ export function Username({
   countryCode,
   href,
   showBadge = true,
+  badge = null,
 }: Props) {
   const label = username ?? "unknown";
   const flag = countryFlag(countryCode);
@@ -45,6 +49,7 @@ export function Username({
       <span className={href ? "underline" : undefined} style={style}>
         {label}
       </span>
+      {badge ? <BadgeIcon badge={badge} size={14} /> : null}
       {showBadge && isAdmin ? <AdminBadge /> : null}
     </span>
   );

@@ -6,11 +6,26 @@ import { submitAccessRequest } from "@/app/actions/access";
 
 type Props = {
   pending?: boolean;
+  hasNsfwAccess?: boolean;
 };
 
-export function AccessRequestForm({ pending = false }: Props) {
+export function AccessRequestForm({
+  pending = false,
+  hasNsfwAccess = false,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [state, formAction] = useFormState(submitAccessRequest, undefined);
+
+  if (hasNsfwAccess) {
+    return (
+      <section className="mt-10 max-w-xl">
+        <h2 className="font-medium mb-2">Request access</h2>
+        <p className="text-sm text-neutral-600">
+          You already have NSFW / Adult board access.
+        </p>
+      </section>
+    );
+  }
 
   if (pending) {
     return (
@@ -27,7 +42,8 @@ export function AccessRequestForm({ pending = false }: Props) {
     <section className="mt-10 max-w-xl">
       <h2 className="font-medium mb-2">Request access</h2>
       <p className="text-sm text-neutral-600 mb-3">
-        Ask an admin for permissions such as NSFW / Adult board access.
+        NSFW and Adult board access is granted by an admin after you submit this
+        request. You must be 18+ with a date of birth set on your profile.
       </p>
       {!open ? (
         <button
@@ -49,7 +65,7 @@ export function AccessRequestForm({ pending = false }: Props) {
               name="age"
               type="number"
               required
-              min={13}
+              min={18}
               max={120}
               className="border p-2"
             />

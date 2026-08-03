@@ -18,3 +18,23 @@ input,
 textarea {
   @apply rounded;
 }
+
+.badge-marquee-track {
+  width: max-content;
+  animation: badge-marquee 28s linear infinite;
+}
+
+@keyframes badge-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .badge-marquee-track {
+    animation: none;
+  }
+}

@@ -1,14 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AdultGate } from "@/components/AdultGate";
 import { Avatar } from "@/components/Avatar";
+import { ForumShell } from "@/components/ForumShell";
 import { Pagination } from "@/components/Pagination";
 import { ThreadActions } from "@/components/ThreadActions";
 import { ThreadDiscussion } from "@/components/ThreadDiscussion";
 import { Username } from "@/components/Username";
 import { VoteButtons } from "@/components/VoteButtons";
-import { boardPath } from "@/lib/boards";
+import { boardPath, subBoardPath } from "@/lib/boards";
+import { censorText } from "@/lib/censor";
 import { canAccessAdultContent } from "@/lib/nsfw";
 import { parsePage, ROOT_POSTS_PER_PAGE, totalPages } from "@/lib/pagination";
+import { getPopularThreads } from "@/lib/popular";
 import { buildPostTree } from "@/lib/posts";
 import { createClient } from "@/lib/supabase/server";
 
@@ -51,9 +55,14 @@ export default async function ThreadPage({ params, searchParams }: Props) {
       like_count,
       dislike_count,
       is_nsfw,
+      is_anonymous,
       board_id,
       boards:board_id ( slug, name, is_adult ),
-      profiles:author_id ( username, avatar_url, is_admin, username_color, country_code, nsfw_enabled )
+      sub_boards:sub_board_id ( slug, name, is_adult, op_only_replies ),
+      profiles:author_id (
+        username, avatar_url, is_admin, username_color, country_code, nsfw_enabled, created_at,
+        display_badge:display_badge_id ( id, slug, name, image_url, is_nsfw )
+      )
     `
     )
     .eq("id", params.id)
@@ -64,7 +73,12 @@ export default async function ThreadPage({ params, searchParams }: Props) {
   }
 
   const board = Array.isArray(thread.boards) ? thread.boards[0] : thread.boards;
-  const isAdultThread = Boolean(board?.is_adult || thread.is_nsfw);
+  const subBoard = Array.isArray(thread.sub_boards)
+    ? thread.sub_boards[0]
+    : thread.sub_boards;
+  const isAdultThread = Boolean(
+    board?.is_adult || subBoard?.is_adult || thread.is_nsfw
+  );
 
   if (isAdultThread && !canAdult && !isAdmin) {
     return (
@@ -74,19 +88,12 @@ export default async function ThreadPage({ params, searchParams }: Props) {
         </p>
         <h1 className="text-2xl font-semibold mb-4">Adult content</h1>
         <p>
-          This thread is in the Adult section and is only visible to logged-in
-          users aged 18+ with NSFW content enabled.
+          This thread is only visible to logged-in users aged 18+ who have been
+          granted NSFW access.
         </p>
-        {!user ? (
-          <p className="mt-4 text-sm">
-            <Link href="/login">Log in</Link> and enable NSFW in Settings.
-          </p>
-        ) : (
-          <p className="mt-4 text-sm">
-            Set your date of birth and enable NSFW in{" "}
-            <Link href="/profile">Settings</Link>.
-          </p>
-        )}
+        <p className="mt-4 text-sm">
+          <Link href="/profile">Request access in Settings</Link>
+        </p>
       </main>
     );
   }
@@ -105,7 +112,10 @@ export default async function ThreadPage({ params, searchParams }: Props) {
       like_count,
       dislike_count,
       created_at,
-      profiles:author_id ( username, avatar_url, is_admin, username_color, country_code, nsfw_enabled )
+      profiles:author_id (
+        username, avatar_url, is_admin, username_color, country_code, nsfw_enabled,
+        display_badge:display_badge_id ( id, slug, name, image_url, is_nsfw )
+      )
     `
     )
     .eq("thread_id", params.id)
@@ -116,7 +126,15 @@ export default async function ThreadPage({ params, searchParams }: Props) {
   }
 
   const author = Array.isArray(thread.profiles) ? thread.profiles[0] : thread.profiles;
-  const blurAuthorAvatar = Boolean(author?.nsfw_enabled) && !canAdult;
+  const displayBadge = Array.isArray(author?.display_badge)
+    ? author?.display_badge[0]
+    : author?.display_badge;
+  const showAsAnon =
+    Boolean(thread.is_anonymous) &&
+    !(user && (user.id === thread.author_id || isAdmin));
+  const hideNsfwOpDetails =
+    !showAsAnon && Boolean(author?.nsfw_enabled) && !canAdult;
+
   const tree = buildPostTree(
     (posts ?? []).map((post) => {
       const profiles = Array.isArray(post.profiles)
@@ -175,17 +193,54 @@ export default async function ThreadPage({ params, searchParams }: Props) {
   }
 
   const isOp = Boolean(user && user.id === thread.author_id);
+  const canReply = Boolean(
+    user && (!subBoard?.op_only_replies || user.id === thread.author_id)
+  );
   const redirectTo = `/threads/${thread.id}?page=${page}`;
   const boardHref = board?.slug ? boardPath(board.slug) : "/";
+  const popularThreads = await getPopularThreads({ canAdult });
 
-  return (
-    <main>
+  const content = (
+    <ForumShell
+      popularThreads={popularThreads}
+      canViewNsfw={canAdult}
+      hideNsfwOpDetails={hideNsfwOpDetails}
+      op={
+        showAsAnon
+          ? {
+              username: "Anonymous",
+              avatar_url: null,
+              is_admin: false,
+              username_color: null,
+              country_code: null,
+              created_at: null,
+            }
+          : {
+              username: author?.username,
+              avatar_url: author?.avatar_url,
+              is_admin: author?.is_admin,
+              username_color: author?.username_color,
+              country_code: author?.country_code,
+              created_at: author?.created_at,
+              nsfw_enabled: author?.nsfw_enabled,
+              display_badge: displayBadge ?? null,
+            }
+      }
+    >
       <p className="mb-4">
         <Link href={boardHref}>← {board?.name ?? "Boards"}</Link>
+        {subBoard ? (
+          <>
+            {" · "}
+            <Link href={subBoardPath(board!.slug, subBoard.slug)}>
+              {subBoard.name}
+            </Link>
+          </>
+        ) : null}
       </p>
 
       <h1 className="text-2xl font-semibold mb-2">
-        {thread.title}
+        {censorText(thread.title, canAdult)}
         {isAdultThread ? (
           <span className="ml-2 text-xs font-semibold uppercase text-red-700 align-middle">
             Adult
@@ -193,21 +248,32 @@ export default async function ThreadPage({ params, searchParams }: Props) {
         ) : null}
       </h1>
       <div className="text-sm text-neutral-600 mb-4 flex items-center gap-2 flex-wrap">
-        <Avatar
-          username={author?.username}
-          avatarUrl={author?.avatar_url}
-          size={24}
-          blurred={blurAuthorAvatar}
-        />
+        {!showAsAnon ? (
+          <Avatar
+            username={author?.username}
+            avatarUrl={author?.avatar_url}
+            size={24}
+            blurred={hideNsfwOpDetails}
+          />
+        ) : null}
         <span className="inline-flex items-center gap-1.5 flex-wrap">
           started by{" "}
-          <Username
-            username={author?.username}
-            isAdmin={author?.is_admin}
-            color={author?.username_color}
-            countryCode={author?.country_code}
-            href={author?.username ? `/u/${author.username}` : null}
-          />
+          {showAsAnon ? (
+            <span>Anonymous</span>
+          ) : (
+            <Username
+              username={author?.username}
+              isAdmin={author?.is_admin}
+              color={author?.username_color}
+              countryCode={author?.country_code}
+              href={author?.username ? `/u/${author.username}` : null}
+              badge={
+                displayBadge && (!displayBadge.is_nsfw || canAdult)
+                  ? displayBadge
+                  : null
+              }
+            />
+          )}
           <span>· {new Date(thread.created_at).toLocaleString()}</span>
         </span>
       </div>
@@ -239,6 +305,8 @@ export default async function ThreadPage({ params, searchParams }: Props) {
           currentUserId={user?.id ?? null}
           isAdmin={isAdmin}
           canViewNsfwProfiles={canAdult}
+          canReply={canReply}
+          threadIsAnonymous={Boolean(thread.is_anonymous)}
           userVotes={userVotes}
           redirectTo={redirectTo}
         />
@@ -255,6 +323,12 @@ export default async function ThreadPage({ params, searchParams }: Props) {
           <Link href="/login">Log in</Link> to reply.
         </p>
       ) : null}
+    </ForumShell>
+  );
+
+  return (
+    <main>
+      {isAdultThread ? <AdultGate>{content}</AdultGate> : content}
     </main>
   );
 }

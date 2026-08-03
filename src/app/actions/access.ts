@@ -26,8 +26,25 @@ export async function submitAccessRequest(
     return { error: "Name and access wanted are required." };
   }
 
-  if (!Number.isFinite(age) || age < 13 || age > 120) {
-    return { error: "Enter a valid age (13–120)." };
+  if (!Number.isFinite(age) || age < 18 || age > 120) {
+    return { error: "You must be 18+ to request NSFW access." };
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("date_of_birth, nsfw_enabled")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.nsfw_enabled) {
+    return { error: "You already have NSFW access." };
+  }
+
+  const { isAtLeast18 } = await import("@/lib/age");
+  if (!isAtLeast18(profile?.date_of_birth)) {
+    return {
+      error: "Set a date of birth showing you are 18+ before requesting access.",
+    };
   }
 
   const { error } = await supabase.from("access_requests").insert({

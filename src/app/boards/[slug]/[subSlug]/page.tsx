@@ -6,7 +6,7 @@ import { ForumShell } from "@/components/ForumShell";
 import { Pagination } from "@/components/Pagination";
 import { Username } from "@/components/Username";
 import { VoteButtons } from "@/components/VoteButtons";
-import { subBoardPath } from "@/lib/boards";
+import { boardPath } from "@/lib/boards";
 import { censorText } from "@/lib/censor";
 import { canAccessAdultContent } from "@/lib/nsfw";
 import { parsePage, THREADS_PER_PAGE, totalPages } from "@/lib/pagination";
@@ -16,7 +16,7 @@ import { createClient } from "@/lib/supabase/server";
 type SortKey = "activity" | "newest" | "likes";
 
 type Props = {
-  params: { slug: string };
+  params: { slug: string; subSlug: string };
   searchParams: { page?: string; sort?: string };
 };
 
@@ -25,7 +25,7 @@ function parseSort(value?: string): SortKey {
   return "activity";
 }
 
-export default async function BoardPage({ params, searchParams }: Props) {
+export default async function SubBoardPage({ params, searchParams }: Props) {
   const supabase = createClient();
   const page = parsePage(searchParams.page);
   const sort = parseSort(searchParams.sort);
@@ -34,11 +34,22 @@ export default async function BoardPage({ params, searchParams }: Props) {
 
   const { data: board } = await supabase
     .from("boards")
-    .select("id, slug, name, description, is_adult")
+    .select("id, slug, name, is_adult")
     .eq("slug", params.slug)
     .maybeSingle();
 
   if (!board) notFound();
+
+  const { data: subBoard } = await supabase
+    .from("sub_boards")
+    .select(
+      "id, slug, name, description, is_adult, max_threads_per_user, op_only_replies, allow_anonymous"
+    )
+    .eq("board_id", board.id)
+    .eq("slug", params.subSlug)
+    .maybeSingle();
+
+  if (!subBoard) notFound();
 
   const {
     data: { user },
@@ -57,17 +68,10 @@ export default async function BoardPage({ params, searchParams }: Props) {
     });
   }
 
-  if (board.is_adult && !canAdult) {
+  const needsAdult = board.is_adult || subBoard.is_adult;
+  if (needsAdult && !canAdult) {
     redirect("/");
   }
-
-  const { data: subBoards } = await supabase
-    .from("sub_boards")
-    .select("id, slug, name, description, is_adult, sort_order")
-    .eq("board_id", board.id)
-    .order("sort_order", { ascending: true });
-
-  const visibleSubs = (subBoards ?? []).filter((s) => !s.is_adult || canAdult);
 
   let query = supabase
     .from("threads")
@@ -85,12 +89,11 @@ export default async function BoardPage({ params, searchParams }: Props) {
       profiles:author_id (
         username, avatar_url, is_admin, username_color, country_code, nsfw_enabled,
         display_badge:display_badge_id ( id, slug, name, image_url, is_nsfw )
-      ),
-      sub_boards:sub_board_id ( slug, name, is_adult )
+      )
     `,
       { count: "exact" }
     )
-    .eq("board_id", board.id);
+    .eq("sub_board_id", subBoard.id);
 
   if (sort === "newest") {
     query = query.order("created_at", { ascending: false });
@@ -112,16 +115,6 @@ export default async function BoardPage({ params, searchParams }: Props) {
   }
 
   const threadIds = threads?.map((t) => t.id) ?? [];
-  const { data: postCounts } =
-    threadIds.length > 0
-      ? await supabase.from("posts").select("thread_id").in("thread_id", threadIds)
-      : { data: [] };
-
-  const counts = (postCounts ?? []).reduce<Record<string, number>>((acc, post) => {
-    acc[post.thread_id] = (acc[post.thread_id] ?? 0) + 1;
-    return acc;
-  }, {});
-
   let userVotes: Record<string, number> = {};
   if (user && threadIds.length > 0) {
     const { data: votes } = await supabase
@@ -130,61 +123,60 @@ export default async function BoardPage({ params, searchParams }: Props) {
       .eq("user_id", user.id)
       .eq("target_type", "thread")
       .in("target_id", threadIds);
-
     userVotes = Object.fromEntries(
       (votes ?? []).map((vote) => [vote.target_id, vote.value])
     );
   }
 
   const pages = totalPages(count ?? 0, THREADS_PER_PAGE);
-  const sortLink = (key: SortKey) =>
-    key === "activity"
-      ? `/boards/${board.slug}?page=1`
-      : `/boards/${board.slug}?sort=${key}&page=1`;
+  const base = `/boards/${board.slug}/${subBoard.slug}`;
 
   const content = (
     <ForumShell popularThreads={popularThreads} canViewNsfw={canAdult}>
       <p className="mb-4">
-        <Link href="/">← Boards</Link>
+        <Link href={boardPath(board.slug)}>← {board.name}</Link>
       </p>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold">
-            {board.name}
-            {board.is_adult ? (
+            {subBoard.name}
+            {needsAdult ? (
               <span className="ml-2 text-xs font-semibold uppercase text-red-700">
                 Adult
               </span>
             ) : null}
           </h1>
-          {board.description ? (
-            <p className="text-sm text-neutral-600 mt-1">{board.description}</p>
+          {subBoard.description ? (
+            <p className="text-sm text-neutral-600 mt-1">{subBoard.description}</p>
+          ) : null}
+          {subBoard.op_only_replies ? (
+            <p className="text-sm text-neutral-600 mt-1">
+              Only the original poster can reply in this sub-board.
+            </p>
           ) : null}
         </div>
         {user ? (
-          <Link href={`/threads/new?board=${board.slug}`}>New thread</Link>
+          <Link href={`/threads/new?board=${board.slug}&sub=${subBoard.slug}`}>
+            New thread
+          </Link>
         ) : null}
       </div>
 
-      {visibleSubs.length ? (
-        <ul className="flex flex-wrap gap-3 text-sm mb-6">
-          {visibleSubs.map((sub) => (
-            <li key={sub.id}>
-              <Link href={subBoardPath(board.slug, sub.slug)}>{sub.name}</Link>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-
       <div className="flex gap-3 text-sm mb-6">
-        <Link href={sortLink("activity")} className={sort === "activity" ? "font-semibold" : undefined}>
+        <Link href={`${base}?page=1`} className={sort === "activity" ? "font-semibold" : undefined}>
           Recent activity
         </Link>
-        <Link href={sortLink("newest")} className={sort === "newest" ? "font-semibold" : undefined}>
+        <Link
+          href={`${base}?sort=newest&page=1`}
+          className={sort === "newest" ? "font-semibold" : undefined}
+        >
           Newest
         </Link>
-        <Link href={sortLink("likes")} className={sort === "likes" ? "font-semibold" : undefined}>
+        <Link
+          href={`${base}?sort=likes&page=1`}
+          className={sort === "likes" ? "font-semibold" : undefined}
+        >
           Most liked
         </Link>
       </div>
@@ -197,13 +189,9 @@ export default async function BoardPage({ params, searchParams }: Props) {
             const author = Array.isArray(thread.profiles)
               ? thread.profiles[0]
               : thread.profiles;
-            const sub = Array.isArray(thread.sub_boards)
-              ? thread.sub_boards[0]
-              : thread.sub_boards;
-            const anonymous = Boolean(thread.is_anonymous);
-            const showAsAnon = anonymous && !(user && user.id === thread.author_id);
-            const blurAvatar =
-              !showAsAnon && Boolean(author?.nsfw_enabled) && !canAdult;
+            const showAsAnon =
+              Boolean(thread.is_anonymous) &&
+              !(user && user.id === thread.author_id);
             const badge = Array.isArray(author?.display_badge)
               ? author?.display_badge[0]
               : author?.display_badge;
@@ -220,13 +208,13 @@ export default async function BoardPage({ params, searchParams }: Props) {
                         username={author?.username}
                         avatarUrl={author?.avatar_url}
                         size={20}
-                        blurred={blurAvatar}
+                        blurred={Boolean(author?.nsfw_enabled) && !canAdult}
                       />
                     ) : null}
-                    <span className="inline-flex items-center gap-1.5 flex-wrap">
+                    <span>
                       by{" "}
                       {showAsAnon ? (
-                        <span>Anonymous</span>
+                        "Anonymous"
                       ) : (
                         <Username
                           username={author?.username}
@@ -238,19 +226,8 @@ export default async function BoardPage({ params, searchParams }: Props) {
                             badge && (!badge.is_nsfw || canAdult) ? badge : null
                           }
                         />
-                      )}
-                      {sub ? (
-                        <span>
-                          ·{" "}
-                          <Link href={subBoardPath(board.slug, sub.slug)}>
-                            {sub.name}
-                          </Link>
-                        </span>
-                      ) : null}
-                      <span>
-                        · {counts[thread.id] ?? 0} posts · updated{" "}
-                        {new Date(thread.updated_at).toLocaleString()}
-                      </span>
+                      )}{" "}
+                      · updated {new Date(thread.updated_at).toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -260,7 +237,7 @@ export default async function BoardPage({ params, searchParams }: Props) {
                   likeCount={thread.like_count ?? 0}
                   dislikeCount={thread.dislike_count ?? 0}
                   userVote={userVotes[thread.id] ?? null}
-                  redirectTo={`/boards/${board.slug}?sort=${sort}&page=${page}`}
+                  redirectTo={`${base}?sort=${sort}&page=${page}`}
                   canVote={Boolean(user)}
                 />
               </li>
@@ -273,9 +250,7 @@ export default async function BoardPage({ params, searchParams }: Props) {
         page={page}
         totalPages={pages}
         hrefForPage={(p) =>
-          sort === "activity"
-            ? `/boards/${board.slug}?page=${p}`
-            : `/boards/${board.slug}?sort=${sort}&page=${p}`
+          sort === "activity" ? `${base}?page=${p}` : `${base}?sort=${sort}&page=${p}`
         }
       />
     </ForumShell>
@@ -283,7 +258,7 @@ export default async function BoardPage({ params, searchParams }: Props) {
 
   return (
     <main>
-      {board.is_adult ? <AdultGate>{content}</AdultGate> : content}
+      {needsAdult ? <AdultGate>{content}</AdultGate> : content}
     </main>
   );
 }

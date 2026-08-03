@@ -1,4 +1,5 @@
--- Run this in Supabase SQL Editor, then promote yourself again.
+-- Run once in Supabase SQL Editor.
+-- Locks profiles.nsfw_enabled so only admins (or SQL Editor) can change it.
 
 create or replace function public.protect_profile_flags()
 returns trigger
@@ -19,11 +20,3 @@ begin
   return new;
 end;
 $$;
-
--- Replace YOUR_USERNAME with your real username:
-update public.profiles
-set is_admin = true
-where username = 'YOUR_USERNAME';
-
--- Confirm it stuck:
-select id, username, is_admin from public.profiles;

@@ -134,7 +134,15 @@ export async function updateProfileDetails(_prevState: unknown, formData: FormDa
     .trim()
     .toUpperCase();
   const dateOfBirth = String(formData.get("date_of_birth") ?? "").trim();
-  const nsfwEnabled = formData.get("nsfw_enabled") === "on";
+  const displayBadgeId = String(formData.get("display_badge_id") ?? "").trim();
+  const topLikes = [1, 2, 3]
+    .map((n) => String(formData.get(`top_like_${n}`) ?? "").trim())
+    .filter(Boolean)
+    .slice(0, 3);
+  const topDislikes = [1, 2, 3]
+    .map((n) => String(formData.get(`top_dislike_${n}`) ?? "").trim())
+    .filter(Boolean)
+    .slice(0, 3);
 
   if (aboutMe.length > 500) {
     return { error: "About me must be 500 characters or less." };
@@ -155,12 +163,21 @@ export async function updateProfileDetails(_prevState: unknown, formData: FormDa
     }
   }
 
-  if (nsfwEnabled) {
-    const { isAtLeast18 } = await import("@/lib/age");
-    if (!isAtLeast18(dateOfBirth)) {
-      return {
-        error: "You must be 18+ with a date of birth set to enable NSFW access.",
-      };
+  for (const item of [...topLikes, ...topDislikes]) {
+    if (item.length > 40) {
+      return { error: "Each like/dislike must be 40 characters or less." };
+    }
+  }
+
+  if (displayBadgeId) {
+    const { data: owned } = await supabase
+      .from("user_badges")
+      .select("badge_id")
+      .eq("user_id", user.id)
+      .eq("badge_id", displayBadgeId)
+      .maybeSingle();
+    if (!owned) {
+      return { error: "You can only display a badge you own." };
     }
   }
 
@@ -171,7 +188,9 @@ export async function updateProfileDetails(_prevState: unknown, formData: FormDa
       username_color: usernameColor || null,
       country_code: countryCode || null,
       date_of_birth: dateOfBirth || null,
-      nsfw_enabled: nsfwEnabled,
+      top_likes: topLikes,
+      top_dislikes: topDislikes,
+      display_badge_id: displayBadgeId || null,
     })
     .eq("id", user.id);
 

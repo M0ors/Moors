@@ -177,8 +177,6 @@ export async function reviewAccessRequest(formData: FormData) {
   await requireAdmin();
   const requestId = String(formData.get("request_id") ?? "");
   const status = String(formData.get("status") ?? "");
-  const enableNsfw = formData.get("enable_nsfw") === "on";
-
   if (!requestId || (status !== "approved" && status !== "rejected")) {
     return;
   }
@@ -195,11 +193,143 @@ export async function reviewAccessRequest(formData: FormData) {
     throw new Error(error.message);
   }
 
-  if (status === "approved" && enableNsfw && request?.user_id) {
+  if (status === "approved" && request?.user_id) {
     await supabase
       .from("profiles")
       .update({ nsfw_enabled: true })
       .eq("id", request.user_id);
+
+    const { awardBadgeBySlug } = await import("@/lib/award-badges");
+    const { BADGE_SLUGS } = await import("@/lib/badges");
+    await awardBadgeBySlug(supabase, request.user_id, BADGE_SLUGS.joinedAdult);
+  }
+
+  revalidatePath("/admin");
+  redirect("/admin");
+}
+
+export async function createSubBoard(_prevState: unknown, formData: FormData) {
+  void _prevState;
+  await requireAdmin();
+  const supabase = createClient();
+
+  const boardId = String(formData.get("board_id") ?? "");
+  const slug = String(formData.get("slug") ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-");
+  const name = String(formData.get("name") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const isAdult = formData.get("is_adult") === "on";
+  const allowAnonymous = formData.get("allow_anonymous") === "on";
+  const opOnlyReplies = formData.get("op_only_replies") === "on";
+  const maxThreadsRaw = String(formData.get("max_threads_per_user") ?? "").trim();
+  const maxThreads = maxThreadsRaw ? Number(maxThreadsRaw) : null;
+  const sortOrder = Number(formData.get("sort_order") ?? 0) || 0;
+
+  if (!boardId || !slug || !name) {
+    return { error: "Board, slug, and name are required." };
+  }
+
+  const { error } = await supabase.from("sub_boards").insert({
+    board_id: boardId,
+    slug,
+    name,
+    description: description || null,
+    is_adult: isAdult,
+    allow_anonymous: allowAnonymous,
+    op_only_replies: opOnlyReplies,
+    max_threads_per_user:
+      maxThreads != null && Number.isFinite(maxThreads) ? maxThreads : null,
+    sort_order: sortOrder,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/");
+  redirect("/admin");
+}
+
+export async function updateSubBoard(formData: FormData) {
+  void formData;
+  await requireAdmin();
+  const supabase = createClient();
+
+  const id = String(formData.get("id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const isAdult = formData.get("is_adult") === "on";
+  const allowAnonymous = formData.get("allow_anonymous") === "on";
+  const opOnlyReplies = formData.get("op_only_replies") === "on";
+  const maxThreadsRaw = String(formData.get("max_threads_per_user") ?? "").trim();
+  const maxThreads = maxThreadsRaw ? Number(maxThreadsRaw) : null;
+  const sortOrder = Number(formData.get("sort_order") ?? 0) || 0;
+
+  if (!id || !name) {
+    throw new Error("Name is required.");
+  }
+
+  const { error } = await supabase
+    .from("sub_boards")
+    .update({
+      name,
+      description: description || null,
+      is_adult: isAdult,
+      allow_anonymous: allowAnonymous,
+      op_only_replies: opOnlyReplies,
+      max_threads_per_user:
+        maxThreads != null && Number.isFinite(maxThreads) ? maxThreads : null,
+      sort_order: sortOrder,
+    })
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/");
+  redirect("/admin");
+}
+
+export async function deleteSubBoard(formData: FormData) {
+  void formData;
+  await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const supabase = createClient();
+  const { error } = await supabase.from("sub_boards").delete().eq("id", id);
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/");
+  redirect("/admin");
+}
+
+export async function updateBadgeImage(formData: FormData) {
+  void formData;
+  await requireAdmin();
+  const supabase = createClient();
+  const id = String(formData.get("id") ?? "");
+  const imageUrl = String(formData.get("image_url") ?? "").trim();
+
+  if (!id) {
+    throw new Error("Badge is required.");
+  }
+
+  const { error } = await supabase
+    .from("badges")
+    .update({ image_url: imageUrl || null })
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(error.message);
   }
 
   revalidatePath("/admin");

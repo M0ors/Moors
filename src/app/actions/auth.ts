@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { getAge } from "@/lib/age";
 import { createClient } from "@/lib/supabase/server";
+import { isValidUsername, USERNAME_RULES } from "@/lib/username";
 
 export async function signUp(_prevState: unknown, formData: FormData) {
   const supabase = createClient();
@@ -16,8 +17,8 @@ export async function signUp(_prevState: unknown, formData: FormData) {
     return { error: "All fields are required." };
   }
 
-  if (username.length < 3 || username.length > 24) {
-    return { error: "Username must be 3–24 characters." };
+  if (!isValidUsername(username)) {
+    return { error: USERNAME_RULES };
   }
 
   const age = getAge(dateOfBirth);

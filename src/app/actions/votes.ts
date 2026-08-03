@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { onLikeReceived } from "@/lib/award-badges";
 import { createClient } from "@/lib/supabase/server";
 
 type TargetType = "thread" | "post";
@@ -69,6 +70,36 @@ export async function castVote(formData: FormData) {
     });
     if (error) {
       throw new Error(error.message);
+    }
+  }
+
+  if (value === 1) {
+    if (targetType === "thread") {
+      const { data: thread } = await supabase
+        .from("threads")
+        .select("author_id, like_count")
+        .eq("id", targetId)
+        .single();
+      if (thread?.author_id) {
+        await onLikeReceived(
+          supabase,
+          thread.author_id,
+          (thread.like_count ?? 0) + 1
+        );
+      }
+    } else {
+      const { data: post } = await supabase
+        .from("posts")
+        .select("author_id, like_count")
+        .eq("id", targetId)
+        .single();
+      if (post?.author_id) {
+        await onLikeReceived(
+          supabase,
+          post.author_id,
+          (post.like_count ?? 0) + 1
+        );
+      }
     }
   }
 

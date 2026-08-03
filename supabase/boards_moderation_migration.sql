@@ -32,6 +32,26 @@ create index if not exists threads_board_id_idx on public.threads (board_id);
 alter table public.profiles
   add column if not exists nsfw_enabled boolean not null default false;
 
+-- NSFW access is admin-granted only (via access requests).
+create or replace function public.protect_profile_flags()
+returns trigger
+language plpgsql
+as $$
+begin
+  if auth.uid() is null then
+    return new;
+  end if;
+
+  if not public.is_admin(auth.uid()) then
+    new.is_admin := old.is_admin;
+    new.is_banned := old.is_banned;
+    new.nsfw_enabled := old.nsfw_enabled;
+  end if;
+
+  return new;
+end;
+$$;
+
 alter table public.posts
   add column if not exists image_approved boolean not null default false;
 
