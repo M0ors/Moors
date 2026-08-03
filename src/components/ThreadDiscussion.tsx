@@ -7,6 +7,7 @@ import { PostActions } from "@/components/PostActions";
 import { PostImage } from "@/components/PostImage";
 import { ReplyForm } from "@/components/ReplyForm";
 import { Username } from "@/components/Username";
+import { UserScore } from "@/components/UserScore";
 import { VoteButtons } from "@/components/VoteButtons";
 import { censorText } from "@/lib/censor";
 import { shouldBlurAvatar } from "@/lib/nsfw";
@@ -22,6 +23,7 @@ type Props = {
   canReply: boolean;
   threadIsAnonymous: boolean;
   userVotes: Record<string, number>;
+  userScores: Record<string, number>;
   redirectTo: string;
 };
 
@@ -45,6 +47,7 @@ function PostItem({
   canReply,
   threadIsAnonymous,
   userVotes,
+  userScores,
   redirectTo,
   replyTo,
   setReplyTo,
@@ -59,6 +62,7 @@ function PostItem({
   canReply: boolean;
   threadIsAnonymous: boolean;
   userVotes: Record<string, number>;
+  userScores: Record<string, number>;
   redirectTo: string;
   replyTo: string | null;
   setReplyTo: (id: string | null) => void;
@@ -90,7 +94,7 @@ function PostItem({
       }`}
       style={{ marginLeft: indent * 24 }}
     >
-      <div className="text-sm text-neutral-600 mb-2 flex items-center gap-2 flex-wrap">
+      <div className="text-sm text-neutral-600 mb-2 flex items-start gap-2">
         {!showAsAnon ? (
           <Avatar
             username={author?.username}
@@ -99,28 +103,35 @@ function PostItem({
             blurred={blurAvatar}
           />
         ) : null}
-        <span className="inline-flex items-center gap-1.5 flex-wrap">
-          {showAsAnon ? (
-            <span>Anonymous</span>
-          ) : (
-            <Username
-              username={author?.username}
-              isAdmin={author?.is_admin}
-              color={author?.username_color}
-              countryCode={author?.country_code}
-              href={author?.username ? `/u/${author.username}` : null}
-              badge={
-                badge && (!badge.is_nsfw || canViewNsfwProfiles) ? badge : null
-              }
-            />
-          )}
-          {post.is_pinned ? (
-            <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-100 text-amber-900">
-              Pinned
-            </span>
+        <div className="min-w-0">
+          <div className="inline-flex items-center gap-1.5 flex-wrap">
+            {showAsAnon ? (
+              <span>Anonymous</span>
+            ) : (
+              <Username
+                username={author?.username}
+                isAdmin={author?.is_admin}
+                color={author?.username_color}
+                countryCode={author?.country_code}
+                href={author?.username ? `/u/${author.username}` : null}
+                badge={
+                  badge && (!badge.is_nsfw || canViewNsfwProfiles) ? badge : null
+                }
+              />
+            )}
+            {post.is_pinned ? (
+              <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-100 text-amber-900">
+                Pinned
+              </span>
+            ) : null}
+            <span>· {new Date(post.created_at).toLocaleString()}</span>
+          </div>
+          {!showAsAnon ? (
+            <div className="mt-0.5">
+              <UserScore score={userScores[post.author_id] ?? 0} />
+            </div>
           ) : null}
-          <span>· {new Date(post.created_at).toLocaleString()}</span>
-        </span>
+        </div>
       </div>
 
       {bodyText ? (
@@ -203,6 +214,7 @@ function PostItem({
               canReply={canReply}
               threadIsAnonymous={threadIsAnonymous}
               userVotes={userVotes}
+              userScores={userScores}
               redirectTo={redirectTo}
               replyTo={replyTo}
               setReplyTo={setReplyTo}
@@ -224,6 +236,7 @@ export function ThreadDiscussion({
   canReply,
   threadIsAnonymous,
   userVotes,
+  userScores,
   redirectTo,
 }: Props) {
   const [replyTo, setReplyTo] = useState<string | null>(null);
@@ -244,6 +257,7 @@ export function ThreadDiscussion({
             canReply={canReply}
             threadIsAnonymous={threadIsAnonymous}
             userVotes={userVotes}
+            userScores={userScores}
             redirectTo={redirectTo}
             replyTo={replyTo}
             setReplyTo={setReplyTo}

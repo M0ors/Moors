@@ -5,12 +5,14 @@ import { Avatar } from "@/components/Avatar";
 import { ForumShell } from "@/components/ForumShell";
 import { Pagination } from "@/components/Pagination";
 import { Username } from "@/components/Username";
+import { UserScore } from "@/components/UserScore";
 import { VoteButtons } from "@/components/VoteButtons";
 import { boardPath } from "@/lib/boards";
 import { censorText } from "@/lib/censor";
 import { canAccessAdultContent, shouldBlurAvatar } from "@/lib/nsfw";
 import { parsePage, THREADS_PER_PAGE, totalPages } from "@/lib/pagination";
 import { getPopularThreads } from "@/lib/popular";
+import { getUserScores } from "@/lib/score";
 import { createClient } from "@/lib/supabase/server";
 
 type SortKey = "activity" | "newest" | "likes";
@@ -128,6 +130,9 @@ export default async function SubBoardPage({ params, searchParams }: Props) {
     );
   }
 
+  const authorIds = (threads ?? []).map((thread) => thread.author_id);
+  const userScores = await getUserScores(supabase, authorIds);
+
   const pages = totalPages(count ?? 0, THREADS_PER_PAGE);
   const base = `/boards/${board.slug}/${subBoard.slug}`;
 
@@ -202,7 +207,7 @@ export default async function SubBoardPage({ params, searchParams }: Props) {
                   <Link href={`/threads/${thread.id}`} className="font-medium block">
                     {censorText(thread.title, canAdult)}
                   </Link>
-                  <div className="text-sm text-neutral-600 mt-1 flex items-center gap-2 flex-wrap">
+                  <div className="text-sm text-neutral-600 mt-1 flex items-start gap-2">
                     {!showAsAnon ? (
                       <Avatar
                         username={author?.username}
@@ -215,24 +220,33 @@ export default async function SubBoardPage({ params, searchParams }: Props) {
                         })}
                       />
                     ) : null}
-                    <span>
-                      by{" "}
-                      {showAsAnon ? (
-                        "Anonymous"
-                      ) : (
-                        <Username
-                          username={author?.username}
-                          isAdmin={author?.is_admin}
-                          color={author?.username_color}
-                          countryCode={author?.country_code}
-                          href={author?.username ? `/u/${author.username}` : null}
-                          badge={
-                            badge && (!badge.is_nsfw || canAdult) ? badge : null
-                          }
-                        />
-                      )}{" "}
-                      · updated {new Date(thread.updated_at).toLocaleString()}
-                    </span>
+                    <div className="min-w-0">
+                      <div className="inline-flex items-center gap-1.5 flex-wrap">
+                        by{" "}
+                        {showAsAnon ? (
+                          "Anonymous"
+                        ) : (
+                          <Username
+                            username={author?.username}
+                            isAdmin={author?.is_admin}
+                            color={author?.username_color}
+                            countryCode={author?.country_code}
+                            href={author?.username ? `/u/${author.username}` : null}
+                            badge={
+                              badge && (!badge.is_nsfw || canAdult) ? badge : null
+                            }
+                          />
+                        )}
+                        <span>
+                          · updated {new Date(thread.updated_at).toLocaleString()}
+                        </span>
+                      </div>
+                      {!showAsAnon ? (
+                        <div className="mt-0.5">
+                          <UserScore score={userScores[thread.author_id] ?? 0} />
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
                 <VoteButtons

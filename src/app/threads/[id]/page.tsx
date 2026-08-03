@@ -7,6 +7,7 @@ import { Pagination } from "@/components/Pagination";
 import { ThreadActions } from "@/components/ThreadActions";
 import { ThreadDiscussion } from "@/components/ThreadDiscussion";
 import { Username } from "@/components/Username";
+import { UserScore } from "@/components/UserScore";
 import { VoteButtons } from "@/components/VoteButtons";
 import { boardPath, subBoardPath } from "@/lib/boards";
 import { censorText } from "@/lib/censor";
@@ -14,6 +15,7 @@ import { canAccessAdultContent, shouldBlurAvatar } from "@/lib/nsfw";
 import { parsePage, ROOT_POSTS_PER_PAGE, totalPages } from "@/lib/pagination";
 import { getPopularThreads } from "@/lib/popular";
 import { buildPostTree } from "@/lib/posts";
+import { getUserScores } from "@/lib/score";
 import { createClient } from "@/lib/supabase/server";
 
 type Props = {
@@ -169,6 +171,14 @@ export default async function ThreadPage({ params, searchParams }: Props) {
   );
 
   const postIds = (posts ?? []).map((post) => post.id);
+  const authorIds = Array.from(
+    new Set([
+      thread.author_id,
+      ...(posts ?? []).map((post) => post.author_id).filter(Boolean),
+    ])
+  );
+  const userScores = await getUserScores(supabase, authorIds);
+
   let userVotes: Record<string, number> = {};
   let threadVote: number | null = null;
 
@@ -252,7 +262,7 @@ export default async function ThreadPage({ params, searchParams }: Props) {
           </span>
         ) : null}
       </h1>
-      <div className="text-sm text-neutral-600 mb-4 flex items-center gap-2 flex-wrap">
+      <div className="text-sm text-neutral-600 mb-4 flex items-start gap-2">
         {!showAsAnon ? (
           <Avatar
             username={author?.username}
@@ -261,26 +271,33 @@ export default async function ThreadPage({ params, searchParams }: Props) {
             blurred={hideNsfwOpDetails}
           />
         ) : null}
-        <span className="inline-flex items-center gap-1.5 flex-wrap">
-          started by{" "}
-          {showAsAnon ? (
-            <span>Anonymous</span>
-          ) : (
-            <Username
-              username={author?.username}
-              isAdmin={author?.is_admin}
-              color={author?.username_color}
-              countryCode={author?.country_code}
-              href={author?.username ? `/u/${author.username}` : null}
-              badge={
-                displayBadge && (!displayBadge.is_nsfw || canAdult)
-                  ? displayBadge
-                  : null
-              }
-            />
-          )}
-          <span>· {new Date(thread.created_at).toLocaleString()}</span>
-        </span>
+        <div className="min-w-0">
+          <div className="inline-flex items-center gap-1.5 flex-wrap">
+            started by{" "}
+            {showAsAnon ? (
+              <span>Anonymous</span>
+            ) : (
+              <Username
+                username={author?.username}
+                isAdmin={author?.is_admin}
+                color={author?.username_color}
+                countryCode={author?.country_code}
+                href={author?.username ? `/u/${author.username}` : null}
+                badge={
+                  displayBadge && (!displayBadge.is_nsfw || canAdult)
+                    ? displayBadge
+                    : null
+                }
+              />
+            )}
+            <span>· {new Date(thread.created_at).toLocaleString()}</span>
+          </div>
+          {!showAsAnon ? (
+            <div className="mt-0.5">
+              <UserScore score={userScores[thread.author_id] ?? 0} />
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <VoteButtons
@@ -313,6 +330,7 @@ export default async function ThreadPage({ params, searchParams }: Props) {
           canReply={canReply}
           threadIsAnonymous={Boolean(thread.is_anonymous)}
           userVotes={userVotes}
+          userScores={userScores}
           redirectTo={redirectTo}
         />
       </div>
