@@ -17,7 +17,7 @@ function BadgeGroup({
 }) {
   return (
     <div
-      className="badge-marquee-group flex items-center shrink-0"
+      className="badge-marquee-group flex items-center justify-end min-w-full shrink-0"
       style={{ gap: BADGE_GAP, paddingRight: BADGE_GAP }}
     >
       {badges.map((badge, index) => (
@@ -36,12 +36,15 @@ function BadgeGroup({
 export function BadgeMarquee({ badges }: Props) {
   if (!badges.length) return null;
 
-  // Duplicate the set so the -50% loop joins with no gap.
-  const sequence = badges.length < 6 ? [...badges, ...badges, ...badges] : badges;
+  // Repeat so short lists still fill a full bar width when justified to the end.
+  const sequence =
+    badges.length < 8
+      ? Array.from({ length: 8 }, () => badges).flat()
+      : badges;
 
   return (
     <div className="badge-marquee border-y my-6 overflow-hidden bg-neutral-50">
-      <div className="badge-marquee-track flex w-max py-3">
+      <div className="badge-marquee-track flex w-max min-w-full py-3">
         <BadgeGroup badges={sequence} keyPrefix="a" />
         <BadgeGroup badges={sequence} keyPrefix="b" />
       </div>

@@ -23,7 +23,7 @@ export function Sidebar({
     <aside className="space-y-8">
       <section>
         <h2 className="font-medium mb-3 text-sm uppercase tracking-wide text-neutral-500">
-          Popular threads
+          {"Popular threads (<30 days)"}
         </h2>
         {!popularThreads.length ? (
           <p className="text-sm text-neutral-600">No popular threads yet.</p>
@@ -35,7 +35,8 @@ export function Sidebar({
                   {censorText(thread.title, canViewNsfw)}
                 </Link>
                 <p className="text-xs text-neutral-500 mt-0.5">
-                  {thread.like_count} likes · last 30 days
+                  {thread.like_count} likes ·{" "}
+                  {new Date(thread.created_at).toLocaleDateString()}
                 </p>
               </li>
             ))}

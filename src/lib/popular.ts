@@ -5,6 +5,7 @@ export type PopularThread = {
   title: string;
   like_count: number;
   is_nsfw: boolean;
+  created_at: string;
   board_slug?: string | null;
 };
 
@@ -31,6 +32,7 @@ export async function getPopularThreads(options: {
     .gte("created_at", since.toISOString())
     .order("like_count", { ascending: false })
     .limit(options.limit ?? 8);
+
   if (error || !data) {
     return [];
   }
@@ -48,6 +50,7 @@ export async function getPopularThreads(options: {
         title: thread.title,
         like_count: thread.like_count ?? 0,
         is_nsfw: Boolean(thread.is_nsfw),
+        created_at: thread.created_at,
         board_slug: board?.slug ?? null,
       };
     });
