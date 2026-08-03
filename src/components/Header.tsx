@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/actions/auth";
@@ -39,8 +40,15 @@ export async function Header() {
   return (
     <header className="border-b mb-8 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-4 flex-wrap">
-        <Link href="/" className="font-semibold text-lg">
-          Moors
+        <Link href="/" className="no-underline inline-flex items-center" aria-label="Moors home">
+          <Image
+            src="/logo.png"
+            alt="Moors"
+            width={40}
+            height={40}
+            className="h-10 w-10 object-contain"
+            priority
+          />
         </Link>
         <nav className="flex items-center gap-3 text-sm">
           <Link href="/boards/general">General</Link>
