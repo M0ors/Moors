@@ -8,7 +8,7 @@ import { Username } from "@/components/Username";
 import { VoteButtons } from "@/components/VoteButtons";
 import { subBoardPath } from "@/lib/boards";
 import { censorText } from "@/lib/censor";
-import { canAccessAdultContent } from "@/lib/nsfw";
+import { canAccessAdultContent, shouldBlurAvatar } from "@/lib/nsfw";
 import { parsePage, THREADS_PER_PAGE, totalPages } from "@/lib/pagination";
 import { getPopularThreads } from "@/lib/popular";
 import { createClient } from "@/lib/supabase/server";
@@ -203,7 +203,12 @@ export default async function BoardPage({ params, searchParams }: Props) {
             const anonymous = Boolean(thread.is_anonymous);
             const showAsAnon = anonymous && !(user && user.id === thread.author_id);
             const blurAvatar =
-              !showAsAnon && Boolean(author?.nsfw_enabled) && !canAdult;
+              !showAsAnon &&
+              shouldBlurAvatar({
+                nsfwEnabled: author?.nsfw_enabled,
+                isAdmin: author?.is_admin,
+                viewerCanNsfw: canAdult,
+              });
             const badge = Array.isArray(author?.display_badge)
               ? author?.display_badge[0]
               : author?.display_badge;

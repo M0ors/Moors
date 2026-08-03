@@ -10,7 +10,7 @@ import { Username } from "@/components/Username";
 import { VoteButtons } from "@/components/VoteButtons";
 import { boardPath, subBoardPath } from "@/lib/boards";
 import { censorText } from "@/lib/censor";
-import { canAccessAdultContent } from "@/lib/nsfw";
+import { canAccessAdultContent, shouldBlurAvatar } from "@/lib/nsfw";
 import { parsePage, ROOT_POSTS_PER_PAGE, totalPages } from "@/lib/pagination";
 import { getPopularThreads } from "@/lib/popular";
 import { buildPostTree } from "@/lib/posts";
@@ -133,7 +133,12 @@ export default async function ThreadPage({ params, searchParams }: Props) {
     Boolean(thread.is_anonymous) &&
     !(user && (user.id === thread.author_id || isAdmin));
   const hideNsfwOpDetails =
-    !showAsAnon && Boolean(author?.nsfw_enabled) && !canAdult;
+    !showAsAnon &&
+    shouldBlurAvatar({
+      nsfwEnabled: author?.nsfw_enabled,
+      isAdmin: author?.is_admin,
+      viewerCanNsfw: canAdult,
+    });
 
   const tree = buildPostTree(
     (posts ?? []).map((post) => {

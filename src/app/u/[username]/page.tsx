@@ -7,8 +7,8 @@ import { Pagination } from "@/components/Pagination";
 import { Username } from "@/components/Username";
 import { visibleBadges } from "@/lib/badges";
 import { censorText } from "@/lib/censor";
-import { countryName } from "@/lib/countries";
-import { canAccessAdultContent } from "@/lib/nsfw";
+import { countryFlag, countryName } from "@/lib/countries";
+import { canAccessAdultContent, shouldBlurAvatar } from "@/lib/nsfw";
 import { parsePage, THREADS_PER_PAGE, totalPages } from "@/lib/pagination";
 import { getPopularThreads } from "@/lib/popular";
 import { createClient } from "@/lib/supabase/server";
@@ -60,8 +60,13 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
     });
   }
 
-  const hideNsfwDetails =
-    Boolean(profile.nsfw_enabled) && !viewerCanNsfw && !isSelf;
+  const blurAvatar =
+    !isSelf &&
+    shouldBlurAvatar({
+      nsfwEnabled: profile.nsfw_enabled,
+      isAdmin: profile.is_admin,
+      viewerCanNsfw,
+    });
 
   const [{ data: badgeRows }, { data: posts, error, count }, popularThreads] =
     await Promise.all([
@@ -113,6 +118,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
 
   const pages = totalPages(count ?? 0, THREADS_PER_PAGE);
   const country = countryName(profile.country_code);
+  const flag = countryFlag(profile.country_code);
   const topLikes = profile.top_likes ?? [];
   const topDislikes = profile.top_dislikes ?? [];
 
@@ -121,7 +127,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
       <ForumShell
         popularThreads={popularThreads}
         canViewNsfw={viewerCanNsfw}
-        hideNsfwOpDetails={hideNsfwDetails}
+        hideNsfwOpDetails={blurAvatar}
         op={{
           username: profile.username,
           avatar_url: profile.avatar_url,
@@ -145,7 +151,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
             username={profile.username}
             avatarUrl={profile.avatar_url}
             size={72}
-            blurred={hideNsfwDetails}
+            blurred={blurAvatar}
           />
           <div>
             <h1 className="text-2xl font-semibold">
@@ -153,8 +159,6 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
                 username={profile.username}
                 isAdmin={profile.is_admin}
                 color={profile.username_color}
-                countryCode={profile.country_code}
-                showCountry
                 badge={
                   displayBadge &&
                   (!displayBadge.is_nsfw || viewerCanNsfw || isSelf)
@@ -163,57 +167,58 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
                 }
               />
             </h1>
-            <p className="text-sm text-neutral-600 mt-1">
-              Joined {new Date(profile.created_at).toLocaleDateString()} ·{" "}
-              {count ?? 0} posts
-              {country ? ` · ${country}` : ""}
+            <p className="text-sm text-neutral-600 mt-1 inline-flex items-center gap-1.5 flex-wrap">
+              <span>
+                Joined {new Date(profile.created_at).toLocaleDateString()} ·{" "}
+                {count ?? 0} posts
+              </span>
+              {country ? (
+                <span className="inline-flex items-center gap-1">
+                  ·{" "}
+                  {flag ? (
+                    <span aria-hidden className="text-base leading-none">
+                      {flag}
+                    </span>
+                  ) : null}
+                  {country}
+                </span>
+              ) : null}
             </p>
           </div>
         </div>
 
-        {hideNsfwDetails ? (
+        {profile.about_me ? (
           <section className="mb-6">
             <h2 className="font-medium mb-2">About</h2>
-            <p className="text-sm text-neutral-600">
-              This user has marked their account as 18+. About me is hidden unless you have approved
-              access too.
+            <p className="whitespace-pre-wrap text-sm">
+              {censorText(profile.about_me, viewerCanNsfw)}
             </p>
           </section>
-        ) : (
-          <>
-            {profile.about_me ? (
-              <section className="mb-6">
-                <h2 className="font-medium mb-2">About</h2>
-                <p className="whitespace-pre-wrap text-sm">
-                  {censorText(profile.about_me, viewerCanNsfw)}
-                </p>
-              </section>
+        ) : null}
+
+        {(topLikes.length > 0 || topDislikes.length > 0) && (
+          <section className="mb-6 grid gap-4 sm:grid-cols-2">
+            {topLikes.length ? (
+              <div>
+                <h2 className="font-medium mb-2">Likes</h2>
+                <ol className="list-decimal list-inside text-sm space-y-1">
+                  {topLikes.map((item: string) => (
+                    <li key={item}>{censorText(item, viewerCanNsfw)}</li>
+                  ))}
+                </ol>
+              </div>
             ) : null}
-            {(topLikes.length > 0 || topDislikes.length > 0) && (
-              <section className="mb-6 grid gap-4 sm:grid-cols-2">
-                {topLikes.length ? (
-                  <div>
-                    <h2 className="font-medium mb-2">Likes</h2>
-                    <ol className="list-decimal list-inside text-sm space-y-1">
-                      {topLikes.map((item: string) => (
-                        <li key={item}>{censorText(item, viewerCanNsfw)}</li>
-                      ))}
-                    </ol>
-                  </div>
-                ) : null}
-                {topDislikes.length ? (
-                  <div>
-                    <h2 className="font-medium mb-2">Dislikes</h2>
-                    <ol className="list-decimal list-inside text-sm space-y-1">
-                      {topDislikes.map((item: string) => (
-                        <li key={item}>{censorText(item, viewerCanNsfw)}</li>
-                      ))}
-                    </ol>
-                  </div>
-                ) : null}
-              </section>
-            )}
-          </>
+            {topDislikes.length ? (
+              <div>
+                <h2 className="font-medium mb-2">Dislikes</h2>
+                <ol className="list-decimal list-inside text-sm space-y-1">
+                  {topDislikes.map((item: string) => (
+                    <li key={item}>{censorText(item, viewerCanNsfw)}</li>
+                  ))}
+                </ol>
+              </div>
+            ) : null}
+          </section>
         )}
 
         <BadgeMarquee badges={badges} />

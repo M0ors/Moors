@@ -10,3 +10,13 @@ export function canAccessAdultContent(options: {
 export function isNsfwProfile(nsfwEnabled?: boolean | null) {
   return Boolean(nsfwEnabled);
 }
+
+/** Blur NSFW avatars for non-NSFW viewers, but never blur admin avatars. */
+export function shouldBlurAvatar(options: {
+  nsfwEnabled?: boolean | null;
+  isAdmin?: boolean | null;
+  viewerCanNsfw: boolean;
+}) {
+  if (options.isAdmin) return false;
+  return Boolean(options.nsfwEnabled) && !options.viewerCanNsfw;
+}

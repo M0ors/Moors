@@ -9,6 +9,7 @@ import { ReplyForm } from "@/components/ReplyForm";
 import { Username } from "@/components/Username";
 import { VoteButtons } from "@/components/VoteButtons";
 import { censorText } from "@/lib/censor";
+import { shouldBlurAvatar } from "@/lib/nsfw";
 import type { PostNode } from "@/lib/posts";
 
 type Props = {
@@ -69,7 +70,11 @@ function PostItem({
   );
   const indent = Math.min(depth, MAX_INDENT);
   const bodyText = post.body.trim();
-  const blurAvatar = Boolean(author?.nsfw_enabled) && !canViewNsfwProfiles;
+  const blurAvatar = shouldBlurAvatar({
+    nsfwEnabled: author?.nsfw_enabled,
+    isAdmin: author?.is_admin,
+    viewerCanNsfw: canViewNsfwProfiles,
+  });
   const canPreviewPending = isAuthor || isAdmin;
   const showAsAnon =
     threadIsAnonymous &&

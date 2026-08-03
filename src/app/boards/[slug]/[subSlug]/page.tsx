@@ -8,7 +8,7 @@ import { Username } from "@/components/Username";
 import { VoteButtons } from "@/components/VoteButtons";
 import { boardPath } from "@/lib/boards";
 import { censorText } from "@/lib/censor";
-import { canAccessAdultContent } from "@/lib/nsfw";
+import { canAccessAdultContent, shouldBlurAvatar } from "@/lib/nsfw";
 import { parsePage, THREADS_PER_PAGE, totalPages } from "@/lib/pagination";
 import { getPopularThreads } from "@/lib/popular";
 import { createClient } from "@/lib/supabase/server";
@@ -208,7 +208,11 @@ export default async function SubBoardPage({ params, searchParams }: Props) {
                         username={author?.username}
                         avatarUrl={author?.avatar_url}
                         size={20}
-                        blurred={Boolean(author?.nsfw_enabled) && !canAdult}
+                        blurred={shouldBlurAvatar({
+                          nsfwEnabled: author?.nsfw_enabled,
+                          isAdmin: author?.is_admin,
+                          viewerCanNsfw: canAdult,
+                        })}
                       />
                     ) : null}
                     <span>
