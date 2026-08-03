@@ -52,7 +52,7 @@ export default async function Home() {
         <p className="text-sm text-neutral-600 mb-6">
           Choose a board or sub-board to browse and post.
           {!canAdult
-            ? " Adult content is hidden unless you are 18+ and have been granted NSFW access."
+            ? " Some content may be hidden due to your preferences"
             : ""}
         </p>
 

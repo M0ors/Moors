@@ -197,7 +197,7 @@ export default async function AdminPage({ searchParams }: Props) {
                       <form action={reviewAccessRequest}>
                         <input type="hidden" name="request_id" value={request.id} />
                         <input type="hidden" name="status" value="approved" />
-                        <button type="submit">Approve (grant NSFW)</button>
+                        <button type="submit">Approve (grant access)</button>
                       </form>
                       <form action={reviewAccessRequest}>
                         <input type="hidden" name="request_id" value={request.id} />

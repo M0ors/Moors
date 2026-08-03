@@ -27,7 +27,7 @@ export async function submitAccessRequest(
   }
 
   if (!Number.isFinite(age) || age < 18 || age > 120) {
-    return { error: "You must be 18+ to request NSFW access." };
+    return { error: "You must be 18+ to request access." };
   }
 
   const { data: profile } = await supabase
@@ -37,7 +37,7 @@ export async function submitAccessRequest(
     .single();
 
   if (profile?.nsfw_enabled) {
-    return { error: "You already have NSFW access." };
+    return { error: "You already have access." };
   }
 
   const { isAtLeast18 } = await import("@/lib/age");

@@ -46,7 +46,7 @@ export default async function SignUpPage() {
           <input name="password" type="password" required minLength={6} className="border p-2" />
         </label>
         <p className="text-sm text-neutral-600">
-          You must be at least 13. NSFW threads are only shown to users 18+.
+          You must be at least 13.
         </p>
       </AuthForm>
       <p className="mt-4 text-sm">

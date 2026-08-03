@@ -87,7 +87,7 @@ export async function createThread(_prevState: unknown, formData: FormData) {
         nsfwEnabled: profile?.nsfw_enabled,
       })
     ) {
-      return { error: "This sub-board requires NSFW access (18+)." };
+      return { error: "This sub-board requires certain access." };
     }
   }
 
@@ -205,7 +205,7 @@ export async function createReply(_prevState: unknown, formData: FormData) {
         nsfwEnabled: profile?.nsfw_enabled,
       })
     ) {
-      return { error: "Adult content requires NSFW access (18+)." };
+      return { error: "This content requires access." };
     }
   }
 
@@ -479,7 +479,7 @@ export async function toggleThreadNsfw(formData: FormData) {
 
   const canModerate = Boolean(profile?.is_admin || thread?.author_id === user.id);
   if (!canModerate) {
-    throw new Error("Only the thread author or an admin can change NSFW.");
+    throw new Error("Only the thread author or an admin can change this.");
   }
 
   let query = supabase.from("threads").update({ is_nsfw: nextNsfw }).eq("id", threadId);

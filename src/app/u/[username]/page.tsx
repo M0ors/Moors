@@ -175,7 +175,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
           <section className="mb-6">
             <h2 className="font-medium mb-2">About</h2>
             <p className="text-sm text-neutral-600">
-              This user has NSFW access. About me is hidden unless you have NSFW
+              This user has marked their account as 18+. About me is hidden unless you have approved
               access too.
             </p>
           </section>

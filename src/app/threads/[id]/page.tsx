@@ -89,7 +89,7 @@ export default async function ThreadPage({ params, searchParams }: Props) {
         <h1 className="text-2xl font-semibold mb-4">Adult content</h1>
         <p>
           This thread is only visible to logged-in users aged 18+ who have been
-          granted NSFW access.
+          granted certain access.
         </p>
         <p className="mt-4 text-sm">
           <Link href="/profile">Request access in Settings</Link>
