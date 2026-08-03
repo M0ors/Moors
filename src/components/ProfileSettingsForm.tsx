@@ -63,7 +63,7 @@ export function ProfileSettingsForm({
       </label>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="font-medium text-sm">Top 3 likes (optional)</legend>
+        <legend className="font-medium text-sm">Likes (optional)</legend>
         {[0, 1, 2].map((i) => (
           <input
             key={`like-${i}`}
@@ -77,7 +77,7 @@ export function ProfileSettingsForm({
       </fieldset>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="font-medium text-sm">Top 3 dislikes (optional)</legend>
+        <legend className="font-medium text-sm">Dislikes (optional)</legend>
         {[0, 1, 2].map((i) => (
           <input
             key={`dislike-${i}`}

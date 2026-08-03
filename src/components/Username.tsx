@@ -11,6 +11,7 @@ type Props = {
   countryCode?: string | null;
   href?: string | null;
   showBadge?: boolean;
+  showCountry?: boolean;
   badge?: BadgeRow | null;
 };
 
@@ -21,10 +22,11 @@ export function Username({
   countryCode,
   href,
   showBadge = true,
+  showCountry = false,
   badge = null,
 }: Props) {
   const label = username ?? "unknown";
-  const flag = countryFlag(countryCode);
+  const flag = showCountry ? countryFlag(countryCode) : null;
 
   const style = isAdmin
     ? {

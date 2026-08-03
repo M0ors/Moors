@@ -20,7 +20,6 @@ textarea {
 }
 
 .badge-marquee-track {
-  width: max-content;
   animation: badge-marquee 28s linear infinite;
 }
 

@@ -60,7 +60,6 @@ export function Sidebar({
                 username={op.username}
                 isAdmin={op.is_admin}
                 color={op.username_color}
-                countryCode={op.country_code}
                 href={op.username ? `/u/${op.username}` : null}
                 badge={
                   op.display_badge &&

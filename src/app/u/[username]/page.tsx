@@ -154,6 +154,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
                 isAdmin={profile.is_admin}
                 color={profile.username_color}
                 countryCode={profile.country_code}
+                showCountry
                 badge={
                   displayBadge &&
                   (!displayBadge.is_nsfw || viewerCanNsfw || isSelf)
@@ -192,7 +193,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
               <section className="mb-6 grid gap-4 sm:grid-cols-2">
                 {topLikes.length ? (
                   <div>
-                    <h2 className="font-medium mb-2">Top likes</h2>
+                    <h2 className="font-medium mb-2">Likes</h2>
                     <ol className="list-decimal list-inside text-sm space-y-1">
                       {topLikes.map((item: string) => (
                         <li key={item}>{censorText(item, viewerCanNsfw)}</li>
@@ -202,7 +203,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
                 ) : null}
                 {topDislikes.length ? (
                   <div>
-                    <h2 className="font-medium mb-2">Top dislikes</h2>
+                    <h2 className="font-medium mb-2">Dislikes</h2>
                     <ol className="list-decimal list-inside text-sm space-y-1">
                       {topDislikes.map((item: string) => (
                         <li key={item}>{censorText(item, viewerCanNsfw)}</li>

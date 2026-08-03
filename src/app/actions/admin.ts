@@ -45,7 +45,7 @@ export async function banUser(formData: FormData) {
   }
 
   revalidatePath("/admin");
-  redirect("/admin");
+  redirect("/admin?tab=users");
 }
 
 export async function unbanUser(formData: FormData) {
@@ -80,7 +80,7 @@ export async function unbanUser(formData: FormData) {
   }
 
   revalidatePath("/admin");
-  redirect("/admin");
+  redirect("/admin?tab=users");
 }
 
 export async function removeUser(formData: FormData) {
@@ -115,7 +115,7 @@ export async function removeUser(formData: FormData) {
 
   revalidatePath("/admin");
   revalidatePath("/");
-  redirect("/admin");
+  redirect("/admin?tab=users");
 }
 
 export async function approvePostImage(formData: FormData) {
@@ -142,7 +142,7 @@ export async function approvePostImage(formData: FormData) {
   if (post?.thread_id) {
     revalidatePath(`/threads/${post.thread_id}`);
   }
-  redirect("/admin");
+  redirect("/admin?tab=images");
 }
 
 export async function rejectPostImage(formData: FormData) {
@@ -169,7 +169,7 @@ export async function rejectPostImage(formData: FormData) {
   if (post?.thread_id) {
     revalidatePath(`/threads/${post.thread_id}`);
   }
-  redirect("/admin");
+  redirect("/admin?tab=images");
 }
 
 export async function reviewAccessRequest(formData: FormData) {
@@ -205,7 +205,7 @@ export async function reviewAccessRequest(formData: FormData) {
   }
 
   revalidatePath("/admin");
-  redirect("/admin");
+  redirect("/admin?tab=access");
 }
 
 export async function createSubBoard(_prevState: unknown, formData: FormData) {
@@ -250,7 +250,7 @@ export async function createSubBoard(_prevState: unknown, formData: FormData) {
 
   revalidatePath("/admin");
   revalidatePath("/");
-  redirect("/admin");
+  redirect("/admin?tab=sub-boards");
 }
 
 export async function updateSubBoard(formData: FormData) {
@@ -292,7 +292,7 @@ export async function updateSubBoard(formData: FormData) {
 
   revalidatePath("/admin");
   revalidatePath("/");
-  redirect("/admin");
+  redirect("/admin?tab=sub-boards");
 }
 
 export async function deleteSubBoard(formData: FormData) {
@@ -309,23 +309,77 @@ export async function deleteSubBoard(formData: FormData) {
 
   revalidatePath("/admin");
   revalidatePath("/");
-  redirect("/admin");
+  redirect("/admin?tab=sub-boards");
 }
 
-export async function updateBadgeImage(formData: FormData) {
+function badgeSlug(raw: string) {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_]/g, "")
+    .slice(0, 40);
+}
+
+export async function createBadge(_prevState: unknown, formData: FormData) {
+  void _prevState;
+  await requireAdmin();
+  const supabase = createClient();
+
+  const name = String(formData.get("name") ?? "").trim();
+  const slugInput = String(formData.get("slug") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const imageUrl = String(formData.get("image_url") ?? "").trim();
+  const isNsfw = formData.get("is_nsfw") === "on";
+  const sortOrder = Number(formData.get("sort_order") ?? 0) || 0;
+  const slug = badgeSlug(slugInput || name);
+
+  if (!name || !slug) {
+    return { error: "Name and slug are required." };
+  }
+
+  const { error } = await supabase.from("badges").insert({
+    name,
+    slug,
+    description: description || null,
+    image_url: imageUrl || null,
+    is_nsfw: isNsfw,
+    sort_order: sortOrder,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin");
+  redirect("/admin?tab=badges");
+}
+
+export async function updateBadge(formData: FormData) {
   void formData;
   await requireAdmin();
   const supabase = createClient();
-  const id = String(formData.get("id") ?? "");
-  const imageUrl = String(formData.get("image_url") ?? "").trim();
 
-  if (!id) {
-    throw new Error("Badge is required.");
+  const id = String(formData.get("id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const imageUrl = String(formData.get("image_url") ?? "").trim();
+  const isNsfw = formData.get("is_nsfw") === "on";
+  const sortOrder = Number(formData.get("sort_order") ?? 0) || 0;
+
+  if (!id || !name) {
+    throw new Error("Badge name is required.");
   }
 
   const { error } = await supabase
     .from("badges")
-    .update({ image_url: imageUrl || null })
+    .update({
+      name,
+      description: description || null,
+      image_url: imageUrl || null,
+      is_nsfw: isNsfw,
+      sort_order: sortOrder,
+    })
     .eq("id", id);
 
   if (error) {
@@ -333,5 +387,26 @@ export async function updateBadgeImage(formData: FormData) {
   }
 
   revalidatePath("/admin");
-  redirect("/admin");
+  redirect("/admin?tab=badges");
+}
+
+export async function deleteBadge(formData: FormData) {
+  void formData;
+  await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const supabase = createClient();
+  const { error } = await supabase.from("badges").delete().eq("id", id);
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/admin");
+  redirect("/admin?tab=badges");
+}
+
+/** @deprecated use updateBadge */
+export async function updateBadgeImage(formData: FormData) {
+  return updateBadge(formData);
 }

@@ -85,7 +85,6 @@ export default async function ProfilePage({ searchParams }: Props) {
               username={profile?.username}
               isAdmin={profile?.is_admin}
               color={profile?.username_color}
-              countryCode={profile?.country_code}
               href={profile?.username ? `/u/${profile.username}` : null}
             />
           </p>

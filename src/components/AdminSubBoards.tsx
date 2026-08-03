@@ -30,7 +30,7 @@ export function AdminSubBoards({ boards, subBoards }: Props) {
   const [createState, createAction] = useFormState(createSubBoard, undefined);
 
   return (
-    <section className="mb-10">
+    <section>
       <h2 className="font-medium mb-3">Sub-boards</h2>
 
       <form action={createAction} className="border rounded p-4 mb-6 grid gap-3 max-w-2xl">

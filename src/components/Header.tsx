@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/actions/auth";
 import { Avatar } from "@/components/Avatar";
+import { NewThreadLink } from "@/components/NewThreadLink";
 import { Username } from "@/components/Username";
 import { canAccessAdultContent } from "@/lib/nsfw";
 
@@ -15,14 +16,13 @@ export async function Header() {
   let avatarUrl: string | null = null;
   let isAdmin = false;
   let usernameColor: string | null = null;
-  let countryCode: string | null = null;
   let canAdult = false;
 
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
       .select(
-        "username, avatar_url, is_admin, username_color, country_code, date_of_birth, nsfw_enabled"
+        "username, avatar_url, is_admin, username_color, date_of_birth, nsfw_enabled"
       )
       .eq("id", user.id)
       .single();
@@ -30,7 +30,6 @@ export async function Header() {
     avatarUrl = profile?.avatar_url ?? null;
     isAdmin = Boolean(profile?.is_admin);
     usernameColor = profile?.username_color ?? null;
-    countryCode = profile?.country_code ?? null;
     canAdult = canAccessAdultContent({
       dateOfBirth: profile?.date_of_birth,
       nsfwEnabled: profile?.nsfw_enabled,
@@ -62,14 +61,13 @@ export async function Header() {
                   username={username}
                   isAdmin={isAdmin}
                   color={usernameColor}
-                  countryCode={countryCode}
                 />
               ) : (
                 <span className="underline">{user.email}</span>
               )}
             </Link>
             <Link href="/profile">Settings</Link>
-            <Link href="/threads/new?board=general">New thread</Link>
+            <NewThreadLink />
             {isAdmin ? <Link href="/admin">Admin</Link> : null}
             <form action={signOut}>
               <button type="submit">Log out</button>

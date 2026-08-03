@@ -1,4 +1,7 @@
-import { updateBadgeImage } from "@/app/actions/admin";
+"use client";
+
+import { useFormState } from "react-dom";
+import { createBadge, deleteBadge, updateBadge } from "@/app/actions/admin";
 import { BadgeIcon } from "@/components/BadgeIcon";
 
 type Badge = {
@@ -8,6 +11,7 @@ type Badge = {
   description: string | null;
   image_url: string | null;
   is_nsfw: boolean;
+  sort_order?: number;
 };
 
 type Props = {
@@ -15,45 +19,133 @@ type Props = {
 };
 
 export function AdminBadges({ badges }: Props) {
+  const [createState, createAction] = useFormState(createBadge, undefined);
+
   return (
-    <section className="mb-10">
-      <h2 className="font-medium mb-3">Badges</h2>
+    <section>
+      <h2 className="font-medium mb-2">Badges</h2>
       <p className="text-sm text-neutral-600 mb-4">
-        Badge images can be added later. Paste a public image URL when ready.
+        Create badges and set image URLs when artwork is ready. Users can display
+        one earned badge next to their username.
       </p>
-      <ul className="space-y-3">
-        {badges.map((badge) => (
-          <li key={badge.id} className="border rounded p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <BadgeIcon badge={badge} size={20} />
-              <div>
-                <p className="font-medium text-sm">
-                  {badge.name}
-                  {badge.is_nsfw ? (
-                    <span className="ml-2 text-xs text-red-700">NSFW</span>
-                  ) : null}
-                </p>
+
+      <form
+        action={createAction}
+        className="border rounded p-4 mb-6 grid gap-3 max-w-2xl"
+      >
+        <h3 className="text-sm font-medium">Create badge</h3>
+        <label className="flex flex-col gap-1 text-sm">
+          Name
+          <input name="name" required maxLength={80} className="border p-2" />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          Slug (optional — auto from name)
+          <input
+            name="slug"
+            maxLength={40}
+            className="border p-2"
+            placeholder="first_thread"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          Description
+          <input name="description" maxLength={200} className="border p-2" />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          Image URL
+          <input
+            name="image_url"
+            className="border p-2"
+            placeholder="https://..."
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          Sort order
+          <input
+            name="sort_order"
+            type="number"
+            defaultValue={badges.length + 1}
+            className="border p-2"
+          />
+        </label>
+        <label className="text-sm flex items-center gap-2">
+          <input type="checkbox" name="is_nsfw" /> Hidden from non-NSFW users
+        </label>
+        {createState?.error ? (
+          <p className="text-red-600 text-sm">{createState.error}</p>
+        ) : null}
+        <button type="submit">Create badge</button>
+      </form>
+
+      {!badges.length ? (
+        <p className="text-sm text-neutral-600">No badges yet.</p>
+      ) : (
+        <ul className="space-y-4">
+          {badges.map((badge) => (
+            <li key={badge.id} className="border rounded p-4 max-w-2xl">
+              <div className="flex items-center gap-2 mb-3">
+                <BadgeIcon badge={badge} size={22} />
                 <p className="text-xs text-neutral-500">{badge.slug}</p>
               </div>
-            </div>
-            <form action={updateBadgeImage} className="flex flex-wrap gap-2 items-end">
-              <input type="hidden" name="id" value={badge.id} />
-              <label className="flex flex-col gap-1 text-sm flex-1 min-w-[200px]">
-                Image URL
-                <input
-                  name="image_url"
-                  defaultValue={badge.image_url ?? ""}
-                  className="border p-2"
-                  placeholder="https://..."
-                />
-              </label>
-              <button type="submit" className="!px-3 !py-2">
-                Save
-              </button>
-            </form>
-          </li>
-        ))}
-      </ul>
+              <form action={updateBadge} className="grid gap-2">
+                <input type="hidden" name="id" value={badge.id} />
+                <label className="flex flex-col gap-1 text-sm">
+                  Name
+                  <input
+                    name="name"
+                    required
+                    defaultValue={badge.name}
+                    className="border p-2"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  Description
+                  <input
+                    name="description"
+                    defaultValue={badge.description ?? ""}
+                    className="border p-2"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  Image URL
+                  <input
+                    name="image_url"
+                    defaultValue={badge.image_url ?? ""}
+                    className="border p-2"
+                    placeholder="https://..."
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  Sort order
+                  <input
+                    name="sort_order"
+                    type="number"
+                    defaultValue={badge.sort_order ?? 0}
+                    className="border p-2"
+                  />
+                </label>
+                <label className="text-sm flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    name="is_nsfw"
+                    defaultChecked={badge.is_nsfw}
+                  />{" "}
+                  Hidden from non-NSFW users
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <button type="submit">Save</button>
+                </div>
+              </form>
+              <form action={deleteBadge} className="mt-2">
+                <input type="hidden" name="id" value={badge.id} />
+                <button type="submit" className="!bg-white !text-red-700">
+                  Delete badge
+                </button>
+              </form>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
