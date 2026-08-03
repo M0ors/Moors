@@ -4,6 +4,7 @@ export type PostNode = {
   author_id: string;
   parent_id: string | null;
   image_url: string | null;
+  image_approved: boolean;
   is_pinned: boolean;
   like_count: number;
   dislike_count: number;
@@ -14,6 +15,7 @@ export type PostNode = {
     is_admin?: boolean | null;
     username_color?: string | null;
     country_code?: string | null;
+    nsfw_enabled?: boolean | null;
   } | null;
   children: PostNode[];
 };

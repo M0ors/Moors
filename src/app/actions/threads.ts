@@ -37,7 +37,7 @@ export async function createThread(_prevState: unknown, formData: FormData) {
 
   const title = String(formData.get("title") ?? "").trim();
   const body = String(formData.get("body") ?? "").trim();
-  const isNsfw = formData.get("is_nsfw") === "on";
+  const boardSlug = String(formData.get("board") ?? "general").trim();
   const imageFile = getImageFile(formData);
 
   if (!title) {
@@ -46,6 +46,33 @@ export async function createThread(_prevState: unknown, formData: FormData) {
 
   if (!body && !imageFile) {
     return { error: "Add a body or an image." };
+  }
+
+  const { data: board } = await supabase
+    .from("boards")
+    .select("id, slug, is_adult")
+    .eq("slug", boardSlug)
+    .single();
+
+  if (!board) {
+    return { error: "Board not found." };
+  }
+
+  if (board.is_adult) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("date_of_birth, nsfw_enabled")
+      .eq("id", user.id)
+      .single();
+    const { canAccessAdultContent } = await import("@/lib/nsfw");
+    if (
+      !canAccessAdultContent({
+        dateOfBirth: profile?.date_of_birth,
+        nsfwEnabled: profile?.nsfw_enabled,
+      })
+    ) {
+      return { error: "Adult board requires NSFW access (18+)." };
+    }
   }
 
   let imageUrl: string | null = null;
@@ -59,7 +86,12 @@ export async function createThread(_prevState: unknown, formData: FormData) {
 
   const { data: thread, error: threadError } = await supabase
     .from("threads")
-    .insert({ title, author_id: user.id, is_nsfw: isNsfw })
+    .insert({
+      title,
+      author_id: user.id,
+      board_id: board.id,
+      is_nsfw: board.is_adult,
+    })
     .select("id")
     .single();
 
@@ -72,6 +104,7 @@ export async function createThread(_prevState: unknown, formData: FormData) {
     author_id: user.id,
     body: body || " ",
     image_url: imageUrl,
+    image_approved: false,
     parent_id: null,
   });
 
@@ -80,6 +113,7 @@ export async function createThread(_prevState: unknown, formData: FormData) {
   }
 
   revalidatePath("/");
+  revalidatePath(`/boards/${board.slug}`);
   redirect(`/threads/${thread.id}`);
 }
 
@@ -101,6 +135,34 @@ export async function createReply(_prevState: unknown, formData: FormData) {
 
   if (!body && !imageFile) {
     return { error: "Add a reply or an image." };
+  }
+
+  const { data: thread } = await supabase
+    .from("threads")
+    .select("id, board_id, boards:board_id ( slug, is_adult )")
+    .eq("id", threadId)
+    .single();
+
+  if (!thread) {
+    return { error: "Thread not found." };
+  }
+
+  const board = Array.isArray(thread.boards) ? thread.boards[0] : thread.boards;
+  if (board?.is_adult) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("date_of_birth, nsfw_enabled")
+      .eq("id", user.id)
+      .single();
+    const { canAccessAdultContent } = await import("@/lib/nsfw");
+    if (
+      !canAccessAdultContent({
+        dateOfBirth: profile?.date_of_birth,
+        nsfwEnabled: profile?.nsfw_enabled,
+      })
+    ) {
+      return { error: "Adult board requires NSFW access (18+)." };
+    }
   }
 
   if (parentId) {
@@ -129,6 +191,7 @@ export async function createReply(_prevState: unknown, formData: FormData) {
     author_id: user.id,
     body: body || " ",
     image_url: imageUrl,
+    image_approved: false,
     parent_id: parentId,
   });
 
@@ -138,6 +201,9 @@ export async function createReply(_prevState: unknown, formData: FormData) {
 
   revalidatePath(`/threads/${threadId}`);
   revalidatePath("/");
+  if (board?.slug) {
+    revalidatePath(`/boards/${board.slug}`);
+  }
   redirect(`/threads/${threadId}`);
 }
 

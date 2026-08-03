@@ -4,6 +4,7 @@ import { Avatar } from "@/components/Avatar";
 import { Pagination } from "@/components/Pagination";
 import { Username } from "@/components/Username";
 import { countryName } from "@/lib/countries";
+import { canAccessAdultContent } from "@/lib/nsfw";
 import { parsePage, THREADS_PER_PAGE, totalPages } from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
 
@@ -22,7 +23,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "id, username, avatar_url, is_admin, created_at, about_me, username_color, country_code"
+      "id, username, avatar_url, is_admin, created_at, about_me, username_color, country_code, nsfw_enabled"
     )
     .eq("username", username)
     .maybeSingle();
@@ -30,6 +31,28 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
   if (!profile) {
     notFound();
   }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let viewerCanNsfw = false;
+  let isSelf = false;
+  if (user) {
+    isSelf = user.id === profile.id;
+    const { data: viewer } = await supabase
+      .from("profiles")
+      .select("date_of_birth, nsfw_enabled")
+      .eq("id", user.id)
+      .single();
+    viewerCanNsfw = canAccessAdultContent({
+      dateOfBirth: viewer?.date_of_birth,
+      nsfwEnabled: viewer?.nsfw_enabled,
+    });
+  }
+
+  const hideNsfwDetails =
+    Boolean(profile.nsfw_enabled) && !viewerCanNsfw && !isSelf;
 
   const {
     data: posts,
@@ -61,7 +84,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
   return (
     <main>
       <p className="mb-4">
-        <Link href="/">← Back to threads</Link>
+        <Link href="/">← Boards</Link>
       </p>
 
       <div className="flex items-center gap-4 mb-6">
@@ -69,6 +92,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
           username={profile.username}
           avatarUrl={profile.avatar_url}
           size={72}
+          blurred={hideNsfwDetails}
         />
         <div>
           <h1 className="text-2xl font-semibold">
@@ -87,7 +111,15 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
         </div>
       </div>
 
-      {profile.about_me ? (
+      {hideNsfwDetails ? (
+        <section className="mb-8">
+          <h2 className="font-medium mb-2">About</h2>
+          <p className="text-sm text-neutral-600">
+            This user has NSFW access enabled. About me is hidden unless you
+            enable NSFW content in Settings.
+          </p>
+        </section>
+      ) : profile.about_me ? (
         <section className="mb-8">
           <h2 className="font-medium mb-2">About</h2>
           <p className="whitespace-pre-wrap text-sm">{profile.about_me}</p>

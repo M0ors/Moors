@@ -134,6 +134,7 @@ export async function updateProfileDetails(_prevState: unknown, formData: FormDa
     .trim()
     .toUpperCase();
   const dateOfBirth = String(formData.get("date_of_birth") ?? "").trim();
+  const nsfwEnabled = formData.get("nsfw_enabled") === "on";
 
   if (aboutMe.length > 500) {
     return { error: "About me must be 500 characters or less." };
@@ -154,6 +155,15 @@ export async function updateProfileDetails(_prevState: unknown, formData: FormDa
     }
   }
 
+  if (nsfwEnabled) {
+    const { isAtLeast18 } = await import("@/lib/age");
+    if (!isAtLeast18(dateOfBirth)) {
+      return {
+        error: "You must be 18+ with a date of birth set to enable NSFW access.",
+      };
+    }
+  }
+
   const { error } = await supabase
     .from("profiles")
     .update({
@@ -161,6 +171,7 @@ export async function updateProfileDetails(_prevState: unknown, formData: FormDa
       username_color: usernameColor || null,
       country_code: countryCode || null,
       date_of_birth: dateOfBirth || null,
+      nsfw_enabled: nsfwEnabled,
     })
     .eq("id", user.id);
 

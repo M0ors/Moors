@@ -10,6 +10,7 @@ type Props = {
   usernameColor?: string | null;
   countryCode?: string | null;
   dateOfBirth?: string | null;
+  nsfwEnabled?: boolean | null;
 };
 
 export function ProfileSettingsForm({
@@ -17,6 +18,7 @@ export function ProfileSettingsForm({
   usernameColor,
   countryCode,
   dateOfBirth,
+  nsfwEnabled,
 }: Props) {
   const [state, formAction] = useFormState(updateProfileDetails, undefined);
 
@@ -45,7 +47,23 @@ export function ProfileSettingsForm({
           className="border p-2"
         />
         <span className="text-sm text-neutral-600">
-          Used to hide NSFW content if you are under 18.
+          Required for Adult / NSFW access (must be 18+).
+        </span>
+      </label>
+
+      <label className="flex items-start gap-2">
+        <input
+          type="checkbox"
+          name="nsfw_enabled"
+          defaultChecked={Boolean(nsfwEnabled)}
+          className="mt-1"
+        />
+        <span>
+          <span className="font-medium">Enable NSFW content</span>
+          <span className="block text-sm text-neutral-600">
+            Shows the Adult board and lets you view NSFW profiles. You must be
+            18+ with a date of birth set.
+          </span>
         </span>
       </label>
 

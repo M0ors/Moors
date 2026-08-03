@@ -28,6 +28,9 @@ export function ReplyForm({ threadId, parentId = null, onCancel, autoFocus }: Pr
         />
       </label>
       <ImageField />
+      <p className="text-sm text-neutral-600">
+        Images stay private until an admin approves them.
+      </p>
       {state?.error ? <p className="text-red-600 text-sm">{state.error}</p> : null}
       <div className="flex gap-2">
         <button type="submit">Post reply</button>

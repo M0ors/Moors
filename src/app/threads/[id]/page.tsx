@@ -6,7 +6,8 @@ import { ThreadActions } from "@/components/ThreadActions";
 import { ThreadDiscussion } from "@/components/ThreadDiscussion";
 import { Username } from "@/components/Username";
 import { VoteButtons } from "@/components/VoteButtons";
-import { isAtLeast18 } from "@/lib/age";
+import { boardPath } from "@/lib/boards";
+import { canAccessAdultContent } from "@/lib/nsfw";
 import { parsePage, ROOT_POSTS_PER_PAGE, totalPages } from "@/lib/pagination";
 import { buildPostTree } from "@/lib/posts";
 import { createClient } from "@/lib/supabase/server";
@@ -24,16 +25,19 @@ export default async function ThreadPage({ params, searchParams }: Props) {
   } = await supabase.auth.getUser();
 
   let isAdmin = false;
-  let canViewNsfw = false;
+  let canAdult = false;
 
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("is_admin, is_banned, date_of_birth")
+      .select("is_admin, is_banned, date_of_birth, nsfw_enabled")
       .eq("id", user.id)
       .single();
     isAdmin = Boolean(profile?.is_admin);
-    canViewNsfw = isAtLeast18(profile?.date_of_birth);
+    canAdult = canAccessAdultContent({
+      dateOfBirth: profile?.date_of_birth,
+      nsfwEnabled: profile?.nsfw_enabled,
+    });
   }
 
   const { data: thread, error: threadError } = await supabase
@@ -47,7 +51,9 @@ export default async function ThreadPage({ params, searchParams }: Props) {
       like_count,
       dislike_count,
       is_nsfw,
-      profiles:author_id ( username, avatar_url, is_admin, username_color, country_code )
+      board_id,
+      boards:board_id ( slug, name, is_adult ),
+      profiles:author_id ( username, avatar_url, is_admin, username_color, country_code, nsfw_enabled )
     `
     )
     .eq("id", params.id)
@@ -57,25 +63,27 @@ export default async function ThreadPage({ params, searchParams }: Props) {
     notFound();
   }
 
-  if (thread.is_nsfw && !canViewNsfw) {
+  const board = Array.isArray(thread.boards) ? thread.boards[0] : thread.boards;
+  const isAdultThread = Boolean(board?.is_adult || thread.is_nsfw);
+
+  if (isAdultThread && !canAdult && !isAdmin) {
     return (
       <main>
         <p className="mb-4">
-          <Link href="/">← Back to threads</Link>
+          <Link href="/">← Boards</Link>
         </p>
-        <h1 className="text-2xl font-semibold mb-4">NSFW content</h1>
+        <h1 className="text-2xl font-semibold mb-4">Adult content</h1>
         <p>
-          This thread is marked NSFW and is only visible to logged-in users aged
-          18+.
+          This thread is in the Adult section and is only visible to logged-in
+          users aged 18+ with NSFW content enabled.
         </p>
         {!user ? (
           <p className="mt-4 text-sm">
-            <Link href="/login">Log in</Link> and make sure your date of birth is
-            set in Settings.
+            <Link href="/login">Log in</Link> and enable NSFW in Settings.
           </p>
         ) : (
           <p className="mt-4 text-sm">
-            Add or update your date of birth in{" "}
+            Set your date of birth and enable NSFW in{" "}
             <Link href="/profile">Settings</Link>.
           </p>
         )}
@@ -92,11 +100,12 @@ export default async function ThreadPage({ params, searchParams }: Props) {
       author_id,
       parent_id,
       image_url,
+      image_approved,
       is_pinned,
       like_count,
       dislike_count,
       created_at,
-      profiles:author_id ( username, avatar_url, is_admin, username_color, country_code )
+      profiles:author_id ( username, avatar_url, is_admin, username_color, country_code, nsfw_enabled )
     `
     )
     .eq("thread_id", params.id)
@@ -107,6 +116,7 @@ export default async function ThreadPage({ params, searchParams }: Props) {
   }
 
   const author = Array.isArray(thread.profiles) ? thread.profiles[0] : thread.profiles;
+  const blurAuthorAvatar = Boolean(author?.nsfw_enabled) && !canAdult;
   const tree = buildPostTree(
     (posts ?? []).map((post) => {
       const profiles = Array.isArray(post.profiles)
@@ -120,6 +130,7 @@ export default async function ThreadPage({ params, searchParams }: Props) {
         created_at: post.created_at,
         parent_id: post.parent_id ?? null,
         image_url: post.image_url ?? null,
+        image_approved: Boolean(post.image_approved),
         is_pinned: Boolean(post.is_pinned),
         like_count: post.like_count ?? 0,
         dislike_count: post.dislike_count ?? 0,
@@ -165,23 +176,29 @@ export default async function ThreadPage({ params, searchParams }: Props) {
 
   const isOp = Boolean(user && user.id === thread.author_id);
   const redirectTo = `/threads/${thread.id}?page=${page}`;
+  const boardHref = board?.slug ? boardPath(board.slug) : "/";
 
   return (
     <main>
       <p className="mb-4">
-        <Link href="/">← Back to threads</Link>
+        <Link href={boardHref}>← {board?.name ?? "Boards"}</Link>
       </p>
 
       <h1 className="text-2xl font-semibold mb-2">
         {thread.title}
-        {thread.is_nsfw ? (
+        {isAdultThread ? (
           <span className="ml-2 text-xs font-semibold uppercase text-red-700 align-middle">
-            NSFW
+            Adult
           </span>
         ) : null}
       </h1>
       <div className="text-sm text-neutral-600 mb-4 flex items-center gap-2 flex-wrap">
-        <Avatar username={author?.username} avatarUrl={author?.avatar_url} size={24} />
+        <Avatar
+          username={author?.username}
+          avatarUrl={author?.avatar_url}
+          size={24}
+          blurred={blurAuthorAvatar}
+        />
         <span className="inline-flex items-center gap-1.5 flex-wrap">
           started by{" "}
           <Username
@@ -211,7 +228,7 @@ export default async function ThreadPage({ params, searchParams }: Props) {
         isNsfw={Boolean(thread.is_nsfw)}
         canEdit={isOp}
         canDelete={isOp || isAdmin}
-        canToggleNsfw={isOp || isAdmin}
+        canToggleNsfw={false}
       />
 
       <div className="mt-8">
@@ -221,6 +238,7 @@ export default async function ThreadPage({ params, searchParams }: Props) {
           posts={pageRoots}
           currentUserId={user?.id ?? null}
           isAdmin={isAdmin}
+          canViewNsfwProfiles={canAdult}
           userVotes={userVotes}
           redirectTo={redirectTo}
         />

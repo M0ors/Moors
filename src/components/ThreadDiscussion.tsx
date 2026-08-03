@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { togglePinPost } from "@/app/actions/threads";
 import { Avatar } from "@/components/Avatar";
 import { PostActions } from "@/components/PostActions";
+import { PostImage } from "@/components/PostImage";
 import { ReplyForm } from "@/components/ReplyForm";
 import { Username } from "@/components/Username";
 import { VoteButtons } from "@/components/VoteButtons";
@@ -16,6 +16,7 @@ type Props = {
   posts: PostNode[];
   currentUserId: string | null;
   isAdmin: boolean;
+  canViewNsfwProfiles: boolean;
   userVotes: Record<string, number>;
   redirectTo: string;
 };
@@ -29,6 +30,7 @@ function PostItem({
   depth,
   currentUserId,
   isAdmin,
+  canViewNsfwProfiles,
   userVotes,
   redirectTo,
   replyTo,
@@ -40,6 +42,7 @@ function PostItem({
   depth: number;
   currentUserId: string | null;
   isAdmin: boolean;
+  canViewNsfwProfiles: boolean;
   userVotes: Record<string, number>;
   redirectTo: string;
   replyTo: string | null;
@@ -52,6 +55,8 @@ function PostItem({
   );
   const indent = Math.min(depth, MAX_INDENT);
   const bodyText = post.body.trim();
+  const blurAvatar = Boolean(author?.nsfw_enabled) && !canViewNsfwProfiles;
+  const canPreviewPending = isAuthor || isAdmin;
 
   return (
     <li
@@ -61,7 +66,12 @@ function PostItem({
       style={{ marginLeft: indent * 24 }}
     >
       <div className="text-sm text-neutral-600 mb-2 flex items-center gap-2 flex-wrap">
-        <Avatar username={author?.username} avatarUrl={author?.avatar_url} size={24} />
+        <Avatar
+          username={author?.username}
+          avatarUrl={author?.avatar_url}
+          size={24}
+          blurred={blurAvatar}
+        />
         <span className="inline-flex items-center gap-1.5 flex-wrap">
           <Username
             username={author?.username}
@@ -81,15 +91,11 @@ function PostItem({
 
       {bodyText ? <p className="whitespace-pre-wrap">{bodyText}</p> : null}
 
-      {post.image_url ? (
-        <Image
-          src={post.image_url}
-          alt="Post attachment"
-          width={800}
-          height={600}
-          className="mt-3 max-w-full h-auto rounded border"
-        />
-      ) : null}
+      <PostImage
+        imageUrl={post.image_url}
+        imageApproved={post.image_approved}
+        canPreviewPending={canPreviewPending}
+      />
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <VoteButtons
@@ -155,6 +161,7 @@ function PostItem({
               depth={depth + 1}
               currentUserId={currentUserId}
               isAdmin={isAdmin}
+              canViewNsfwProfiles={canViewNsfwProfiles}
               userVotes={userVotes}
               redirectTo={redirectTo}
               replyTo={replyTo}
@@ -173,6 +180,7 @@ export function ThreadDiscussion({
   posts,
   currentUserId,
   isAdmin,
+  canViewNsfwProfiles,
   userVotes,
   redirectTo,
 }: Props) {
@@ -190,6 +198,7 @@ export function ThreadDiscussion({
             depth={0}
             currentUserId={currentUserId}
             isAdmin={isAdmin}
+            canViewNsfwProfiles={canViewNsfwProfiles}
             userVotes={userVotes}
             redirectTo={redirectTo}
             replyTo={replyTo}
