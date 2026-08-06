@@ -44,7 +44,7 @@ export default function TermsPage() {
           <ul className="list-disc pl-5 space-y-1">
             <li>Do not post illegal content or links to illegal material.</li>
             <li>Do not harass, threaten, dox, or impersonate others.</li>
-            <li>Respect board rules, including adult / NSFW boundaries.</li>
+            <li>Respect board rules, including content boundaries.</li>
             <li>
               Image attachments may require staff approval before they appear
               publicly.
@@ -57,16 +57,7 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-lg font-medium mb-2">5. Adult content</h2>
-          <p>
-            Adult boards and NSFW badges or media are restricted. Staff may grant
-            or revoke adult access. Circumventing age or access controls is
-            forbidden.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-medium mb-2">6. Moderation</h2>
+          <h2 className="text-lg font-medium mb-2">5. Moderation</h2>
           <p>
             Admins and moderators may remove content, ban users, approve or reject
             images, and manage boards as needed to keep the community usable and
@@ -75,16 +66,15 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-lg font-medium mb-2">7. Availability</h2>
+          <h2 className="text-lg font-medium mb-2">6. Availability</h2>
           <p>
             Moors is provided as-is. Features may change, and the service may be
-            unavailable at times. We are not liable for lost posts, downtime, or
-            third-party outages (including hosting and auth providers).
+            unavailable at times. We are not liable for lost posts.
           </p>
         </section>
 
         <section>
-          <h2 className="text-lg font-medium mb-2">8. Changes</h2>
+          <h2 className="text-lg font-medium mb-2">7. Changes</h2>
           <p>
             We may update these terms. Continued use after changes means you
             accept the updated terms. Material changes may also be announced on
@@ -93,10 +83,19 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-lg font-medium mb-2">9. Contact</h2>
+          <h2 className="text-lg font-medium mb-2">8. Contact</h2>
           <p>
             Questions about these terms can be raised via Site updates or by
             contacting a site admin through the forum.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-medium mb-2">9. Breach of these terms</h2>
+          <p>
+            If you are found to have shared illegal content, illegal links, or
+            illegal material, we will forward that content to the appropriate
+            authorities. Remember, what you share is not anonymous.
           </p>
         </section>
       </div>
