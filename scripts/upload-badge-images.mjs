@@ -17,8 +17,20 @@ const root = join(__dirname, "..");
 
 function loadEnvLocal() {
   const path = join(root, ".env.local");
-  if (!existsSync(path)) return;
-  for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
+  if (!existsSync(path)) {
+    console.error(`No .env.local at ${path}`);
+    return;
+  }
+  let raw = readFileSync(path);
+  // Strip UTF-8 BOM / handle UTF-16 LE from some Windows editors
+  if (raw[0] === 0xff && raw[1] === 0xfe) {
+    raw = Buffer.from(raw.toString("utf16le"));
+  }
+  let text = raw.toString("utf8");
+  if (text.charCodeAt(0) === 0xfeff) {
+    text = text.slice(1);
+  }
+  for (const line of text.split(/\r?\n/)) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
     const eq = trimmed.indexOf("=");
@@ -31,7 +43,7 @@ function loadEnvLocal() {
     ) {
       value = value.slice(1, -1);
     }
-    if (!(key in process.env)) {
+    if (!process.env[key]) {
       process.env[key] = value;
     }
   }
@@ -43,8 +55,15 @@ const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!url || !key) {
+  const missing = [
+    !url ? "NEXT_PUBLIC_SUPABASE_URL" : null,
+    !key ? "SUPABASE_SERVICE_ROLE_KEY" : null,
+  ].filter(Boolean);
   console.error(
-    "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local"
+    `Missing ${missing.join(" and ")} in .env.local (or value is empty).`
+  );
+  console.error(
+    "Add them to C:\\Users\\nickc\\Documents\\GitHub\\Moors\\.env.local then re-run."
   );
   process.exit(1);
 }

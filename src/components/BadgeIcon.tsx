@@ -20,6 +20,7 @@ export function BadgeIcon({ badge, size = 16, title }: Props) {
         title={label}
         className="inline-block object-contain shrink-0"
         style={{ width: size, height: size }}
+        unoptimized
       />
     );
   }
