@@ -19,7 +19,7 @@ async function requireActiveUser() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("is_banned, date_of_birth, nsfw_enabled")
+    .select("is_banned, is_admin, date_of_birth, nsfw_enabled")
     .eq("id", user.id)
     .single();
 
@@ -77,6 +77,10 @@ export async function createThread(_prevState: unknown, formData: FormData) {
 
   if (!subBoard) {
     return { error: "Sub-board not found." };
+  }
+
+  if (subBoard.slug === "site-updates" && !profile?.is_admin) {
+    return { error: "Only admins can post in Site updates." };
   }
 
   const needsAdult = board.is_adult || subBoard.is_adult;

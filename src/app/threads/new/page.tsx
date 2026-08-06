@@ -31,7 +31,7 @@ export default async function NewThreadPage({ searchParams }: Props) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("date_of_birth, nsfw_enabled")
+    .select("date_of_birth, nsfw_enabled, is_admin")
     .eq("id", user.id)
     .single();
 
@@ -52,7 +52,15 @@ export default async function NewThreadPage({ searchParams }: Props) {
     .eq("board_id", board.id)
     .order("sort_order", { ascending: true });
 
-  const visibleSubs = (subBoards ?? []).filter((s) => !s.is_adult || canAdult);
+  const visibleSubs = (subBoards ?? []).filter((s) => {
+    if (s.is_adult && !canAdult) return false;
+    if (s.slug === "site-updates" && !profile?.is_admin) return false;
+    return true;
+  });
+
+  if (searchParams.sub === "site-updates" && !profile?.is_admin) {
+    redirect(`/boards/${board.slug}/site-updates`);
+  }
 
   if (!visibleSubs.length) {
     return (

@@ -58,16 +58,18 @@ export default async function SubBoardPage({ params, searchParams }: Props) {
   } = await supabase.auth.getUser();
 
   let canAdult = false;
+  let isAdmin = false;
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("date_of_birth, nsfw_enabled")
+      .select("date_of_birth, nsfw_enabled, is_admin")
       .eq("id", user.id)
       .single();
     canAdult = canAccessAdultContent({
       dateOfBirth: profile?.date_of_birth,
       nsfwEnabled: profile?.nsfw_enabled,
     });
+    isAdmin = Boolean(profile?.is_admin);
   }
 
   const needsAdult = board.is_adult || subBoard.is_adult;
@@ -161,10 +163,13 @@ export default async function SubBoardPage({ params, searchParams }: Props) {
             </p>
           ) : null}
         </div>
-        {user ? (
+        {user && (subBoard.slug !== "site-updates" || isAdmin) ? (
           <Link href={`/threads/new?board=${board.slug}&sub=${subBoard.slug}`}>
             New thread
           </Link>
+        ) : null}
+        {user && subBoard.slug === "site-updates" && !isAdmin ? (
+          <p className="text-sm text-neutral-600">Only admins can post here.</p>
         ) : null}
       </div>
 

@@ -119,7 +119,8 @@ export default async function StaffGuidePage() {
                 </li>
                 <li>
                   Threads posted in <strong>General → Site updates</strong> also
-                  appear in that same sidebar list.
+                  appear in that same sidebar list (only admins can create those
+                  threads).
                 </li>
               </ol>
             </section>
