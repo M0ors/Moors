@@ -4,8 +4,36 @@ import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/actions/auth";
 import { Avatar } from "@/components/Avatar";
 import { NewThreadLink } from "@/components/NewThreadLink";
+import { StaffAlertsLink } from "@/components/StaffAlertsLink";
 import { Username } from "@/components/Username";
 import { canAccessAdultContent } from "@/lib/nsfw";
+
+async function getStaffPendingCount(options: {
+  isAdmin: boolean;
+  isModerator: boolean;
+}) {
+  if (!options.isAdmin && !options.isModerator) {
+    return 0;
+  }
+
+  const supabase = createClient();
+  const { count: images } = await supabase
+    .from("posts")
+    .select("id", { count: "exact", head: true })
+    .not("image_url", "is", null)
+    .eq("image_approved", false);
+
+  let access = 0;
+  if (options.isAdmin) {
+    const { count } = await supabase
+      .from("access_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending");
+    access = count ?? 0;
+  }
+
+  return (images ?? 0) + access;
+}
 
 export async function Header() {
   const supabase = createClient();
@@ -19,6 +47,7 @@ export async function Header() {
   let isModerator = false;
   let usernameColor: string | null = null;
   let canAdult = false;
+  let staffPending = 0;
 
   if (user) {
     const { data: profile } = await supabase
@@ -37,6 +66,7 @@ export async function Header() {
       dateOfBirth: profile?.date_of_birth,
       nsfwEnabled: profile?.nsfw_enabled,
     });
+    staffPending = await getStaffPendingCount({ isAdmin, isModerator });
   }
 
   return (
@@ -79,8 +109,12 @@ export async function Header() {
             </Link>
             <Link href="/profile">Settings</Link>
             <NewThreadLink />
-            {isAdmin ? <Link href="/admin">Admin</Link> : null}
-            {!isAdmin && isModerator ? <Link href="/admin">Mod</Link> : null}
+            {isAdmin ? (
+              <StaffAlertsLink label="Admin" initialPending={staffPending} />
+            ) : null}
+            {!isAdmin && isModerator ? (
+              <StaffAlertsLink label="Mod" initialPending={staffPending} />
+            ) : null}
             <form action={signOut}>
               <button type="submit">Log out</button>
             </form>
