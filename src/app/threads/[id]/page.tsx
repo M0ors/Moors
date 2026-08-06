@@ -31,15 +31,17 @@ export default async function ThreadPage({ params, searchParams }: Props) {
   } = await supabase.auth.getUser();
 
   let isAdmin = false;
+  let isModerator = false;
   let canAdult = false;
 
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("is_admin, is_banned, date_of_birth, nsfw_enabled")
+      .select("is_admin, is_moderator, is_banned, date_of_birth, nsfw_enabled")
       .eq("id", user.id)
       .single();
     isAdmin = Boolean(profile?.is_admin);
+    isModerator = Boolean(profile?.is_moderator);
     canAdult = canAccessAdultContent({
       dateOfBirth: profile?.date_of_birth,
       nsfwEnabled: profile?.nsfw_enabled,
@@ -62,7 +64,7 @@ export default async function ThreadPage({ params, searchParams }: Props) {
       boards:board_id ( slug, name, is_adult ),
       sub_boards:sub_board_id ( slug, name, is_adult, op_only_replies ),
       profiles:author_id (
-        username, avatar_url, is_admin, username_color, country_code, nsfw_enabled, created_at,
+        username, avatar_url, is_admin, is_moderator, username_color, country_code, nsfw_enabled, created_at,
         display_badge:display_badge_id ( id, slug, name, image_url, is_nsfw )
       )
     `
@@ -82,7 +84,7 @@ export default async function ThreadPage({ params, searchParams }: Props) {
     board?.is_adult || subBoard?.is_adult || thread.is_nsfw
   );
 
-  if (isAdultThread && !canAdult && !isAdmin) {
+  if (isAdultThread && !canAdult && !isAdmin && !isModerator) {
     return (
       <main>
         <p className="mb-4">
@@ -115,7 +117,7 @@ export default async function ThreadPage({ params, searchParams }: Props) {
       dislike_count,
       created_at,
       profiles:author_id (
-        username, avatar_url, is_admin, username_color, country_code, nsfw_enabled,
+        username, avatar_url, is_admin, is_moderator, username_color, country_code, nsfw_enabled,
         display_badge:display_badge_id ( id, slug, name, image_url, is_nsfw )
       )
     `
@@ -133,12 +135,13 @@ export default async function ThreadPage({ params, searchParams }: Props) {
     : author?.display_badge;
   const showAsAnon =
     Boolean(thread.is_anonymous) &&
-    !(user && (user.id === thread.author_id || isAdmin));
+    !(user && (user.id === thread.author_id || isAdmin || isModerator));
   const hideNsfwOpDetails =
     !showAsAnon &&
     shouldBlurAvatar({
       nsfwEnabled: author?.nsfw_enabled,
       isAdmin: author?.is_admin,
+      isModerator: author?.is_moderator,
       viewerCanNsfw: canAdult,
     });
 
@@ -226,6 +229,7 @@ export default async function ThreadPage({ params, searchParams }: Props) {
               username: "Anonymous",
               avatar_url: null,
               is_admin: false,
+              is_moderator: false,
               username_color: null,
               country_code: null,
               created_at: null,
@@ -234,6 +238,7 @@ export default async function ThreadPage({ params, searchParams }: Props) {
               username: author?.username,
               avatar_url: author?.avatar_url,
               is_admin: author?.is_admin,
+              is_moderator: author?.is_moderator,
               username_color: author?.username_color,
               country_code: author?.country_code,
               created_at: author?.created_at,
@@ -280,6 +285,7 @@ export default async function ThreadPage({ params, searchParams }: Props) {
               <Username
                 username={author?.username}
                 isAdmin={author?.is_admin}
+                isModerator={author?.is_moderator}
                 color={author?.username_color}
                 countryCode={author?.country_code}
                 href={author?.username ? `/u/${author.username}` : null}
@@ -315,7 +321,7 @@ export default async function ThreadPage({ params, searchParams }: Props) {
         title={thread.title}
         isNsfw={Boolean(thread.is_nsfw)}
         canEdit={isOp}
-        canDelete={isOp || isAdmin}
+        canDelete={isOp || isAdmin || isModerator}
         canToggleNsfw={false}
       />
 
@@ -326,6 +332,7 @@ export default async function ThreadPage({ params, searchParams }: Props) {
           posts={pageRoots}
           currentUserId={user?.id ?? null}
           isAdmin={isAdmin}
+          isModerator={isModerator}
           canViewNsfwProfiles={canAdult}
           canReply={canReply}
           threadIsAnonymous={Boolean(thread.is_anonymous)}

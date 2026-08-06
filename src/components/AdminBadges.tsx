@@ -1,7 +1,12 @@
 "use client";
 
 import { useFormState } from "react-dom";
-import { createBadge, deleteBadge, updateBadge } from "@/app/actions/admin";
+import {
+  createBadge,
+  deleteBadge,
+  grantBadge,
+  updateBadge,
+} from "@/app/actions/admin";
 import { BadgeIcon } from "@/components/BadgeIcon";
 
 type Badge = {
@@ -20,14 +25,51 @@ type Props = {
 
 export function AdminBadges({ badges }: Props) {
   const [createState, createAction] = useFormState(createBadge, undefined);
+  const [grantState, grantAction] = useFormState(grantBadge, undefined);
 
   return (
     <section>
       <h2 className="font-medium mb-2">Badges</h2>
       <p className="text-sm text-neutral-600 mb-4">
-        Create badges and set image URLs when artwork is ready. Users can display
-        one earned badge next to their username.
+        Create badges, set image URLs, and grant them to users by username.
+        Users can display one earned badge next to their username.
       </p>
+
+      <form
+        action={grantAction}
+        className="border rounded p-4 mb-6 grid gap-3 max-w-2xl"
+      >
+        <h3 className="text-sm font-medium">Grant badge</h3>
+        <label className="flex flex-col gap-1 text-sm">
+          Username
+          <input
+            name="username"
+            required
+            maxLength={24}
+            className="border p-2"
+            placeholder="exact username"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          Badge
+          <select name="badge_id" required className="border p-2" defaultValue="">
+            <option value="" disabled>
+              Select a badge
+            </option>
+            {badges.map((badge) => (
+              <option key={badge.id} value={badge.id}>
+                {badge.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        {grantState?.error ? (
+          <p className="text-red-600 text-sm">{grantState.error}</p>
+        ) : null}
+        <button type="submit" disabled={!badges.length}>
+          Grant badge
+        </button>
+      </form>
 
       <form
         action={createAction}

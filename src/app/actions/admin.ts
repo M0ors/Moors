@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireStaff } from "@/lib/auth";
 import { createAdminClient, hasServiceRoleKey } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -120,7 +120,7 @@ export async function removeUser(formData: FormData) {
 
 export async function approvePostImage(formData: FormData) {
   void formData;
-  await requireAdmin();
+  await requireStaff();
   const postId = String(formData.get("post_id") ?? "");
   if (!postId) {
     return;
@@ -147,7 +147,7 @@ export async function approvePostImage(formData: FormData) {
 
 export async function rejectPostImage(formData: FormData) {
   void formData;
-  await requireAdmin();
+  await requireStaff();
   const postId = String(formData.get("post_id") ?? "");
   if (!postId) {
     return;
@@ -409,4 +409,113 @@ export async function deleteBadge(formData: FormData) {
 /** @deprecated use updateBadge */
 export async function updateBadgeImage(formData: FormData) {
   return updateBadge(formData);
+}
+
+export async function grantBadge(_prevState: unknown, formData: FormData) {
+  void _prevState;
+  await requireAdmin();
+  const supabase = createClient();
+
+  const username = String(formData.get("username") ?? "").trim();
+  const badgeId = String(formData.get("badge_id") ?? "").trim();
+
+  if (!username || !badgeId) {
+    return { error: "Username and badge are required." };
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("username", username)
+    .maybeSingle();
+
+  if (!profile) {
+    return { error: "User not found." };
+  }
+
+  const { error } = await supabase.from("user_badges").insert({
+    user_id: profile.id,
+    badge_id: badgeId,
+  });
+
+  if (error) {
+    if (error.code === "23505") {
+      return { error: "That user already has this badge." };
+    }
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin");
+  revalidatePath(`/u/${username}`);
+  redirect("/admin?tab=badges");
+}
+
+export async function revokeBadge(formData: FormData) {
+  void formData;
+  await requireAdmin();
+  const supabase = createClient();
+
+  const userId = String(formData.get("user_id") ?? "");
+  const badgeId = String(formData.get("badge_id") ?? "");
+  if (!userId || !badgeId) {
+    return;
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("username, display_badge_id")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const { error } = await supabase
+    .from("user_badges")
+    .delete()
+    .eq("user_id", userId)
+    .eq("badge_id", badgeId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (profile?.display_badge_id === badgeId) {
+    await supabase
+      .from("profiles")
+      .update({ display_badge_id: null })
+      .eq("id", userId);
+  }
+
+  revalidatePath("/admin");
+  if (profile?.username) {
+    revalidatePath(`/u/${profile.username}`);
+  }
+  redirect("/admin?tab=users");
+}
+
+export async function setModerator(formData: FormData) {
+  void formData;
+  const { user: admin } = await requireAdmin();
+  const userId = String(formData.get("user_id") ?? "");
+  const nextValue = String(formData.get("is_moderator") ?? "") === "true";
+
+  if (!userId) {
+    return;
+  }
+
+  const selfError = await assertNotSelf(userId, admin.id);
+  if (selfError) {
+    throw new Error(selfError.error);
+  }
+
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("profiles")
+    .update({ is_moderator: nextValue })
+    .eq("id", userId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/admin");
+  redirect("/admin?tab=users");
 }

@@ -6,6 +6,7 @@ export type CurrentProfile = {
   username: string;
   avatar_url: string | null;
   is_admin: boolean;
+  is_moderator: boolean;
   is_banned: boolean;
 };
 
@@ -21,7 +22,7 @@ export async function getCurrentProfile() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, username, avatar_url, is_admin, is_banned")
+    .select("id, username, avatar_url, is_admin, is_moderator, is_banned")
     .eq("id", user.id)
     .single();
 
@@ -47,4 +48,30 @@ export async function requireAdmin() {
   }
 
   return { user, profile };
+}
+
+/** Admin or moderator — for image approval / content deletion tools. */
+export async function requireStaff() {
+  const { user, profile } = await getCurrentProfile();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  if (!profile?.is_admin && !profile?.is_moderator) {
+    redirect("/");
+  }
+
+  if (profile.is_banned) {
+    redirect("/login?error=banned");
+  }
+
+  return { user, profile };
+}
+
+export function canModerateContent(profile?: {
+  is_admin?: boolean | null;
+  is_moderator?: boolean | null;
+} | null) {
+  return Boolean(profile?.is_admin || profile?.is_moderator);
 }

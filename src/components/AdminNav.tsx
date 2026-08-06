@@ -18,12 +18,18 @@ const TABS: { id: AdminTab; label: string }[] = [
 type Props = {
   active: AdminTab;
   counts?: Partial<Record<AdminTab, number>>;
+  /** When set, only these tabs are shown (e.g. mods see Images only). */
+  allowedTabs?: AdminTab[];
 };
 
-export function AdminNav({ active, counts }: Props) {
+export function AdminNav({ active, counts, allowedTabs }: Props) {
+  const tabs = allowedTabs
+    ? TABS.filter((tab) => allowedTabs.includes(tab.id))
+    : TABS;
+
   return (
     <nav className="flex flex-wrap gap-2 border-b mb-8 pb-3" aria-label="Admin sections">
-      {TABS.map((tab) => {
+      {tabs.map((tab) => {
         const count = counts?.[tab.id];
         const isActive = tab.id === active;
         return (
@@ -47,7 +53,18 @@ export function AdminNav({ active, counts }: Props) {
   );
 }
 
-export function parseAdminTab(value?: string): AdminTab {
+export function parseAdminTab(
+  value: string | undefined,
+  allowedTabs?: AdminTab[]
+): AdminTab {
+  const allowed = allowedTabs ?? [
+    "images",
+    "access",
+    "sub-boards",
+    "badges",
+    "users",
+  ];
+
   if (
     value === "images" ||
     value === "access" ||
@@ -55,7 +72,10 @@ export function parseAdminTab(value?: string): AdminTab {
     value === "badges" ||
     value === "users"
   ) {
-    return value;
+    if (allowed.includes(value)) {
+      return value;
+    }
   }
-  return "images";
+
+  return allowed[0] ?? "images";
 }

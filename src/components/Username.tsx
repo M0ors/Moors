@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { AdminBadge } from "@/components/AdminBadge";
 import { BadgeIcon } from "@/components/BadgeIcon";
+import { ModBadge } from "@/components/ModBadge";
 import type { BadgeRow } from "@/lib/badges";
 import { countryFlag } from "@/lib/countries";
 
 type Props = {
   username?: string | null;
   isAdmin?: boolean | null;
+  isModerator?: boolean | null;
   color?: string | null;
   countryCode?: string | null;
   href?: string | null;
@@ -18,6 +20,7 @@ type Props = {
 export function Username({
   username,
   isAdmin = false,
+  isModerator = false,
   color,
   countryCode,
   href,
@@ -37,9 +40,18 @@ export function Username({
         padding: "0 0.25rem",
         borderRadius: "0.2rem",
       }
-    : color
-      ? { color }
-      : undefined;
+    : isModerator
+      ? {
+          color: "#ffffff",
+          textShadow:
+            "0 0 4px #ec4899, 0 0 8px #ec4899, 0 0 14px #f472b6, 0 0 22px #be185d",
+          backgroundColor: "#111111",
+          padding: "0 0.25rem",
+          borderRadius: "0.2rem",
+        }
+      : color
+        ? { color }
+        : undefined;
 
   const name = (
     <span className="inline-flex items-center gap-1.5 flex-wrap">
@@ -53,6 +65,7 @@ export function Username({
       </span>
       {badge ? <BadgeIcon badge={badge} size={14} /> : null}
       {showBadge && isAdmin ? <AdminBadge /> : null}
+      {showBadge && !isAdmin && isModerator ? <ModBadge /> : null}
     </span>
   );
 

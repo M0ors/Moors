@@ -15,6 +15,7 @@ export type PostNode = {
     username?: string | null;
     avatar_url?: string | null;
     is_admin?: boolean | null;
+    is_moderator?: boolean | null;
     username_color?: string | null;
     country_code?: string | null;
     nsfw_enabled?: boolean | null;

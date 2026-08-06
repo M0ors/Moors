@@ -309,7 +309,7 @@ export async function deletePost(formData: FormData) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("is_admin, is_banned")
+    .select("is_admin, is_moderator, is_banned")
     .eq("id", user.id)
     .single();
 
@@ -317,8 +317,9 @@ export async function deletePost(formData: FormData) {
     throw new Error("Your account is banned.");
   }
 
+  const isStaff = Boolean(profile?.is_admin || profile?.is_moderator);
   let query = supabase.from("posts").delete().eq("id", postId);
-  if (!profile?.is_admin) {
+  if (!isStaff) {
     query = query.eq("author_id", user.id);
   }
 
@@ -383,7 +384,7 @@ export async function deleteThread(formData: FormData) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("is_admin, is_banned")
+    .select("is_admin, is_moderator, is_banned")
     .eq("id", user.id)
     .single();
 
@@ -391,8 +392,9 @@ export async function deleteThread(formData: FormData) {
     throw new Error("Your account is banned.");
   }
 
+  const isStaff = Boolean(profile?.is_admin || profile?.is_moderator);
   let query = supabase.from("threads").delete().eq("id", threadId);
-  if (!profile?.is_admin) {
+  if (!isStaff) {
     query = query.eq("author_id", user.id);
   }
 

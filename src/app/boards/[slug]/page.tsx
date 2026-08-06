@@ -85,7 +85,7 @@ export default async function BoardPage({ params, searchParams }: Props) {
       is_anonymous,
       author_id,
       profiles:author_id (
-        username, avatar_url, is_admin, username_color, country_code, nsfw_enabled,
+        username, avatar_url, is_admin, is_moderator, username_color, country_code, nsfw_enabled,
         display_badge:display_badge_id ( id, slug, name, image_url, is_nsfw )
       ),
       sub_boards:sub_board_id ( slug, name, is_adult )
@@ -212,6 +212,7 @@ export default async function BoardPage({ params, searchParams }: Props) {
               shouldBlurAvatar({
                 nsfwEnabled: author?.nsfw_enabled,
                 isAdmin: author?.is_admin,
+                isModerator: author?.is_moderator,
                 viewerCanNsfw: canAdult,
               });
             const badge = Array.isArray(author?.display_badge)
@@ -242,6 +243,7 @@ export default async function BoardPage({ params, searchParams }: Props) {
                           <Username
                             username={author?.username}
                             isAdmin={author?.is_admin}
+                            isModerator={author?.is_moderator}
                             color={author?.username_color}
                             countryCode={author?.country_code}
                             href={author?.username ? `/u/${author.username}` : null}

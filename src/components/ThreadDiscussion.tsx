@@ -19,6 +19,7 @@ type Props = {
   posts: PostNode[];
   currentUserId: string | null;
   isAdmin: boolean;
+  isModerator?: boolean;
   canViewNsfwProfiles: boolean;
   canReply: boolean;
   threadIsAnonymous: boolean;
@@ -43,6 +44,7 @@ function PostItem({
   depth,
   currentUserId,
   isAdmin,
+  isModerator,
   canViewNsfwProfiles,
   canReply,
   threadIsAnonymous,
@@ -58,6 +60,7 @@ function PostItem({
   depth: number;
   currentUserId: string | null;
   isAdmin: boolean;
+  isModerator: boolean;
   canViewNsfwProfiles: boolean;
   canReply: boolean;
   threadIsAnonymous: boolean;
@@ -69,6 +72,7 @@ function PostItem({
 }) {
   const author = Array.isArray(post.profiles) ? post.profiles[0] : post.profiles;
   const isAuthor = Boolean(currentUserId && post.author_id === currentUserId);
+  const isStaff = isAdmin || isModerator;
   const canPin = Boolean(
     currentUserId && (isAdmin || currentUserId === threadAuthorId)
   );
@@ -77,14 +81,15 @@ function PostItem({
   const blurAvatar = shouldBlurAvatar({
     nsfwEnabled: author?.nsfw_enabled,
     isAdmin: author?.is_admin,
+    isModerator: author?.is_moderator,
     viewerCanNsfw: canViewNsfwProfiles,
   });
-  const canPreviewPending = isAuthor || isAdmin;
+  const canPreviewPending = isAuthor || isStaff;
   const showAsAnon =
     threadIsAnonymous &&
     post.author_id === threadAuthorId &&
     !isAuthor &&
-    !isAdmin;
+    !isStaff;
   const badge = resolveBadge(author);
 
   return (
@@ -111,6 +116,7 @@ function PostItem({
               <Username
                 username={author?.username}
                 isAdmin={author?.is_admin}
+                isModerator={author?.is_moderator}
                 color={author?.username_color}
                 countryCode={author?.country_code}
                 href={author?.username ? `/u/${author.username}` : null}
@@ -184,7 +190,7 @@ function PostItem({
           threadId={threadId}
           body={bodyText || post.body}
           canEdit={isAuthor}
-          canDelete={isAuthor || isAdmin}
+          canDelete={isAuthor || isStaff}
         />
       </div>
 
@@ -210,6 +216,7 @@ function PostItem({
               depth={depth + 1}
               currentUserId={currentUserId}
               isAdmin={isAdmin}
+              isModerator={isModerator}
               canViewNsfwProfiles={canViewNsfwProfiles}
               canReply={canReply}
               threadIsAnonymous={threadIsAnonymous}
@@ -232,6 +239,7 @@ export function ThreadDiscussion({
   posts,
   currentUserId,
   isAdmin,
+  isModerator = false,
   canViewNsfwProfiles,
   canReply,
   threadIsAnonymous,
@@ -253,6 +261,7 @@ export function ThreadDiscussion({
             depth={0}
             currentUserId={currentUserId}
             isAdmin={isAdmin}
+            isModerator={isModerator}
             canViewNsfwProfiles={canViewNsfwProfiles}
             canReply={canReply}
             threadIsAnonymous={threadIsAnonymous}

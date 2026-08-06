@@ -16,6 +16,7 @@ export async function Header() {
   let username: string | null = null;
   let avatarUrl: string | null = null;
   let isAdmin = false;
+  let isModerator = false;
   let usernameColor: string | null = null;
   let canAdult = false;
 
@@ -23,13 +24,14 @@ export async function Header() {
     const { data: profile } = await supabase
       .from("profiles")
       .select(
-        "username, avatar_url, is_admin, username_color, date_of_birth, nsfw_enabled"
+        "username, avatar_url, is_admin, is_moderator, username_color, date_of_birth, nsfw_enabled"
       )
       .eq("id", user.id)
       .single();
     username = profile?.username ?? null;
     avatarUrl = profile?.avatar_url ?? null;
     isAdmin = Boolean(profile?.is_admin);
+    isModerator = Boolean(profile?.is_moderator);
     usernameColor = profile?.username_color ?? null;
     canAdult = canAccessAdultContent({
       dateOfBirth: profile?.date_of_birth,
@@ -68,6 +70,7 @@ export async function Header() {
                 <Username
                   username={username}
                   isAdmin={isAdmin}
+                  isModerator={isModerator}
                   color={usernameColor}
                 />
               ) : (
@@ -77,6 +80,7 @@ export async function Header() {
             <Link href="/profile">Settings</Link>
             <NewThreadLink />
             {isAdmin ? <Link href="/admin">Admin</Link> : null}
+            {!isAdmin && isModerator ? <Link href="/admin">Mod</Link> : null}
             <form action={signOut}>
               <button type="submit">Log out</button>
             </form>

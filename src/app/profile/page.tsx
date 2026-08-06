@@ -26,7 +26,7 @@ export default async function ProfilePage({ searchParams }: Props) {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "username, avatar_url, is_admin, about_me, username_color, country_code, date_of_birth, nsfw_enabled, top_likes, top_dislikes, display_badge_id"
+      "username, avatar_url, is_admin, is_moderator, about_me, username_color, country_code, date_of_birth, nsfw_enabled, top_likes, top_dislikes, display_badge_id"
     )
     .eq("id", user.id)
     .single();
@@ -84,6 +84,7 @@ export default async function ProfilePage({ searchParams }: Props) {
             <Username
               username={profile?.username}
               isAdmin={profile?.is_admin}
+              isModerator={profile?.is_moderator}
               color={profile?.username_color}
               href={profile?.username ? `/u/${profile.username}` : null}
             />

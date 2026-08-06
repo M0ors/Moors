@@ -5,6 +5,7 @@ create table public.profiles (
   username text unique not null,
   avatar_url text,
   is_admin boolean not null default false,
+  is_moderator boolean not null default false,
   is_banned boolean not null default false,
   created_at timestamptz not null default now()
 );
@@ -109,6 +110,16 @@ as $$
   select coalesce((select is_admin from public.profiles where id = uid), false);
 $$;
 
+create or replace function public.is_moderator(uid uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce((select is_moderator from public.profiles where id = uid), false);
+$$;
+
 create or replace function public.protect_profile_flags()
 returns trigger
 language plpgsql
@@ -123,6 +134,7 @@ begin
     new.is_admin := old.is_admin;
     new.is_banned := old.is_banned;
     new.nsfw_enabled := old.nsfw_enabled;
+    new.is_moderator := old.is_moderator;
   end if;
 
   return new;
@@ -133,9 +145,9 @@ create trigger profiles_protect_flags
   before update on public.profiles
   for each row execute function public.protect_profile_flags();
 
-create policy "Authors or admins can delete threads"
+create policy "Authors or staff can delete threads"
   on public.threads for delete
-  using (auth.uid() = author_id or public.is_admin(auth.uid()));
+  using (auth.uid() = author_id or public.is_admin(auth.uid()) or public.is_moderator(auth.uid()));
 
 create policy "Posts are viewable by everyone"
   on public.posts for select using (true);
@@ -151,9 +163,9 @@ create policy "Authors can update their posts"
   on public.posts for update
   using (auth.uid() = author_id);
 
-create policy "Authors or admins can delete posts"
+create policy "Authors or staff can delete posts"
   on public.posts for delete
-  using (auth.uid() = author_id or public.is_admin(auth.uid()));
+  using (auth.uid() = author_id or public.is_admin(auth.uid()) or public.is_moderator(auth.uid()));
 
 create policy "Admins can update any profile"
   on public.profiles for update

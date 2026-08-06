@@ -31,7 +31,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
     .from("profiles")
     .select(
       `
-      id, username, avatar_url, is_admin, created_at, about_me, username_color, country_code,
+      id, username, avatar_url, is_admin, is_moderator, created_at, about_me, username_color, country_code,
       nsfw_enabled, top_likes, top_dislikes, display_badge_id,
       display_badge:display_badge_id ( id, slug, name, image_url, is_nsfw )
     `
@@ -67,6 +67,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
     shouldBlurAvatar({
       nsfwEnabled: profile.nsfw_enabled,
       isAdmin: profile.is_admin,
+      isModerator: profile.is_moderator,
       viewerCanNsfw,
     });
 
@@ -149,6 +150,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
                 <Username
                   username={profile.username}
                   isAdmin={profile.is_admin}
+                  isModerator={profile.is_moderator}
                   color={profile.username_color}
                   badge={
                     displayBadge &&

@@ -60,6 +60,7 @@ export function Sidebar({
               <Username
                 username={op.username}
                 isAdmin={op.is_admin}
+                isModerator={op.is_moderator}
                 color={op.username_color}
                 href={op.username ? `/u/${op.username}` : null}
                 badge={

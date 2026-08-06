@@ -5,27 +5,44 @@ import {
   banUser,
   rejectPostImage,
   removeUser,
+  revokeBadge,
   reviewAccessRequest,
+  setModerator,
   unbanUser,
 } from "@/app/actions/admin";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff } from "@/lib/auth";
 import { hasServiceRoleKey } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { AdminBadge } from "@/components/AdminBadge";
 import { AdminBadges } from "@/components/AdminBadges";
-import { AdminNav, parseAdminTab } from "@/components/AdminNav";
+import { AdminNav, parseAdminTab, type AdminTab } from "@/components/AdminNav";
 import { AdminSubBoards } from "@/components/AdminSubBoards";
 import { Avatar } from "@/components/Avatar";
+import { BadgeIcon } from "@/components/BadgeIcon";
+import { ModBadge } from "@/components/ModBadge";
 
 type Props = {
   searchParams: { tab?: string };
 };
 
+type UserBadgeRow = {
+  user_id: string;
+  badge_id: string;
+  badges:
+    | { id: string; name: string; image_url: string | null; is_nsfw: boolean }
+    | { id: string; name: string; image_url: string | null; is_nsfw: boolean }[]
+    | null;
+};
+
 export default async function AdminPage({ searchParams }: Props) {
-  const { user: admin } = await requireAdmin();
+  const { user: staff, profile: staffProfile } = await requireStaff();
+  const isAdmin = Boolean(staffProfile.is_admin);
   const supabase = createClient();
   const canRemove = hasServiceRoleKey();
-  const tab = parseAdminTab(searchParams.tab);
+  const allowedTabs: AdminTab[] = isAdmin
+    ? ["images", "access", "sub-boards", "badges", "users"]
+    : ["images"];
+  const tab = parseAdminTab(searchParams.tab, allowedTabs);
 
   const [
     { data: users, error },
@@ -34,11 +51,16 @@ export default async function AdminPage({ searchParams }: Props) {
     { data: boards },
     { data: subBoards },
     { data: badges },
+    { data: userBadgeRows },
   ] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("id, username, avatar_url, is_admin, is_banned, created_at")
-      .order("created_at", { ascending: false }),
+    isAdmin
+      ? supabase
+          .from("profiles")
+          .select(
+            "id, username, avatar_url, is_admin, is_moderator, is_banned, created_at"
+          )
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: null, error: null }),
     supabase
       .from("posts")
       .select(
@@ -54,10 +76,11 @@ export default async function AdminPage({ searchParams }: Props) {
       .not("image_url", "is", null)
       .eq("image_approved", false)
       .order("created_at", { ascending: false }),
-    supabase
-      .from("access_requests")
-      .select(
-        `
+    isAdmin
+      ? supabase
+          .from("access_requests")
+          .select(
+            `
           id,
           full_name,
           age,
@@ -67,27 +90,53 @@ export default async function AdminPage({ searchParams }: Props) {
           user_id,
           profiles:user_id ( username )
         `
-      )
-      .eq("status", "pending")
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("boards")
-      .select("id, slug, name")
-      .order("sort_order", { ascending: true }),
-    supabase
-      .from("sub_boards")
-      .select(
-        "id, board_id, slug, name, description, is_adult, sort_order, max_threads_per_user, op_only_replies, allow_anonymous"
-      )
-      .order("sort_order", { ascending: true }),
-    supabase
-      .from("badges")
-      .select("id, slug, name, description, image_url, is_nsfw, sort_order")
-      .order("sort_order", { ascending: true }),
+          )
+          .eq("status", "pending")
+          .order("created_at", { ascending: true })
+      : Promise.resolve({ data: null }),
+    isAdmin
+      ? supabase
+          .from("boards")
+          .select("id, slug, name")
+          .order("sort_order", { ascending: true })
+      : Promise.resolve({ data: null }),
+    isAdmin
+      ? supabase
+          .from("sub_boards")
+          .select(
+            "id, board_id, slug, name, description, is_adult, sort_order, max_threads_per_user, op_only_replies, allow_anonymous"
+          )
+          .order("sort_order", { ascending: true })
+      : Promise.resolve({ data: null }),
+    isAdmin
+      ? supabase
+          .from("badges")
+          .select("id, slug, name, description, image_url, is_nsfw, sort_order")
+          .order("sort_order", { ascending: true })
+      : Promise.resolve({ data: null }),
+    isAdmin
+      ? supabase
+          .from("user_badges")
+          .select(
+            "user_id, badge_id, badges:badge_id ( id, name, image_url, is_nsfw )"
+          )
+      : Promise.resolve({ data: null }),
   ]);
 
-  if (error) {
+  if (isAdmin && error) {
     return <p>Failed to load users: {error.message}</p>;
+  }
+
+  const badgesByUser = new Map<
+    string,
+    { id: string; name: string; image_url: string | null; is_nsfw: boolean }[]
+  >();
+  for (const row of (userBadgeRows as UserBadgeRow[] | null) ?? []) {
+    const badge = Array.isArray(row.badges) ? row.badges[0] : row.badges;
+    if (!badge) continue;
+    const list = badgesByUser.get(row.user_id) ?? [];
+    list.push(badge);
+    badgesByUser.set(row.user_id, list);
   }
 
   return (
@@ -96,25 +145,33 @@ export default async function AdminPage({ searchParams }: Props) {
         <Link href="/">← Boards</Link>
       </p>
 
-      <h1 className="text-2xl font-semibold mb-2">Admin</h1>
+      <h1 className="text-2xl font-semibold mb-2">
+        {isAdmin ? "Admin" : "Moderator"}
+      </h1>
       <p className="text-sm text-neutral-600 mb-6">
-        Moderate content and manage boards, badges, and users
-        {canRemove ? "." : " (add SUPABASE_SERVICE_ROLE_KEY to enable remove)."}
+        {isAdmin
+          ? `Moderate content and manage boards, badges, and users${
+              canRemove ? "." : " (add SUPABASE_SERVICE_ROLE_KEY to enable remove)."
+            }`
+          : "Approve pending images. You can also delete threads and replies from the forum."}
       </p>
 
       <AdminNav
         active={tab}
+        allowedTabs={allowedTabs}
         counts={{
           images: pendingImages?.length ?? 0,
           access: accessRequests?.length ?? 0,
         }}
       />
 
-      {tab === "sub-boards" ? (
+      {tab === "sub-boards" && isAdmin ? (
         <AdminSubBoards boards={boards ?? []} subBoards={subBoards ?? []} />
       ) : null}
 
-      {tab === "badges" ? <AdminBadges badges={badges ?? []} /> : null}
+      {tab === "badges" && isAdmin ? (
+        <AdminBadges badges={badges ?? []} />
+      ) : null}
 
       {tab === "images" ? (
         <section>
@@ -169,7 +226,7 @@ export default async function AdminPage({ searchParams }: Props) {
         </section>
       ) : null}
 
-      {tab === "access" ? (
+      {tab === "access" && isAdmin ? (
         <section>
           <h2 className="font-medium mb-3">Access requests</h2>
           {!accessRequests?.length ? (
@@ -215,7 +272,7 @@ export default async function AdminPage({ searchParams }: Props) {
         </section>
       ) : null}
 
-      {tab === "users" ? (
+      {tab === "users" && isAdmin ? (
         <section>
           <h2 className="font-medium mb-3">Users</h2>
           {!users?.length ? (
@@ -223,23 +280,27 @@ export default async function AdminPage({ searchParams }: Props) {
           ) : (
             <ul className="divide-y border rounded">
               {users.map((profile) => {
-                const isSelf = profile.id === admin.id;
+                const isSelf = profile.id === staff.id;
+                const owned = badgesByUser.get(profile.id) ?? [];
 
                 return (
                   <li
                     key={profile.id}
-                    className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+                    className="p-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
                       <Avatar
                         username={profile.username}
                         avatarUrl={profile.avatar_url}
                         size={36}
                       />
-                      <div>
+                      <div className="min-w-0">
                         <p className="font-medium inline-flex items-center gap-2 flex-wrap">
                           {profile.username}
                           {profile.is_admin ? <AdminBadge /> : null}
+                          {!profile.is_admin && profile.is_moderator ? (
+                            <ModBadge />
+                          ) : null}
                           {profile.is_banned ? (
                             <span className="text-xs text-red-600">banned</span>
                           ) : null}
@@ -247,6 +308,38 @@ export default async function AdminPage({ searchParams }: Props) {
                         <p className="text-sm text-neutral-600">
                           joined {new Date(profile.created_at).toLocaleDateString()}
                         </p>
+                        {owned.length ? (
+                          <ul className="mt-2 flex flex-wrap gap-2">
+                            {owned.map((badge) => (
+                              <li
+                                key={badge.id}
+                                className="inline-flex items-center gap-1.5 text-xs border rounded px-2 py-1"
+                              >
+                                <BadgeIcon badge={badge} size={14} />
+                                <span>{badge.name}</span>
+                                <form action={revokeBadge}>
+                                  <input
+                                    type="hidden"
+                                    name="user_id"
+                                    value={profile.id}
+                                  />
+                                  <input
+                                    type="hidden"
+                                    name="badge_id"
+                                    value={badge.id}
+                                  />
+                                  <button
+                                    type="submit"
+                                    className="!bg-transparent !text-red-700 !p-0 !text-xs"
+                                    title="Revoke badge"
+                                  >
+                                    ×
+                                  </button>
+                                </form>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
                       </div>
                     </div>
 
@@ -254,6 +347,24 @@ export default async function AdminPage({ searchParams }: Props) {
                       <p className="text-sm text-neutral-500">You</p>
                     ) : (
                       <div className="flex flex-wrap gap-2">
+                        {!profile.is_admin ? (
+                          <form action={setModerator}>
+                            <input type="hidden" name="user_id" value={profile.id} />
+                            <input
+                              type="hidden"
+                              name="is_moderator"
+                              value={profile.is_moderator ? "false" : "true"}
+                            />
+                            <button
+                              type="submit"
+                              className="!bg-white !text-neutral-900"
+                            >
+                              {profile.is_moderator
+                                ? "Remove moderator"
+                                : "Make moderator"}
+                            </button>
+                          </form>
+                        ) : null}
                         {profile.is_banned ? (
                           <form action={unbanUser}>
                             <input type="hidden" name="user_id" value={profile.id} />

@@ -3,6 +3,7 @@ export type Profile = {
   username: string;
   avatar_url: string | null;
   is_admin: boolean;
+  is_moderator: boolean;
   is_banned: boolean;
   created_at: string;
 };

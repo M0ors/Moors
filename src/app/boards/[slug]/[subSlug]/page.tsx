@@ -89,7 +89,7 @@ export default async function SubBoardPage({ params, searchParams }: Props) {
       is_anonymous,
       author_id,
       profiles:author_id (
-        username, avatar_url, is_admin, username_color, country_code, nsfw_enabled,
+        username, avatar_url, is_admin, is_moderator, username_color, country_code, nsfw_enabled,
         display_badge:display_badge_id ( id, slug, name, image_url, is_nsfw )
       )
     `,
@@ -216,6 +216,7 @@ export default async function SubBoardPage({ params, searchParams }: Props) {
                         blurred={shouldBlurAvatar({
                           nsfwEnabled: author?.nsfw_enabled,
                           isAdmin: author?.is_admin,
+                          isModerator: author?.is_moderator,
                           viewerCanNsfw: canAdult,
                         })}
                       />
@@ -229,6 +230,7 @@ export default async function SubBoardPage({ params, searchParams }: Props) {
                           <Username
                             username={author?.username}
                             isAdmin={author?.is_admin}
+                            isModerator={author?.is_moderator}
                             color={author?.username_color}
                             countryCode={author?.country_code}
                             href={author?.username ? `/u/${author.username}` : null}
