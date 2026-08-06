@@ -7,6 +7,7 @@ create table public.profiles (
   is_admin boolean not null default false,
   is_moderator boolean not null default false,
   is_banned boolean not null default false,
+  last_active_at timestamptz,
   created_at timestamptz not null default now()
 );
 

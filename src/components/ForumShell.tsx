@@ -1,6 +1,7 @@
 import { Sidebar } from "@/components/Sidebar";
 import { getSidebarAnnouncements } from "@/lib/announcements";
 import type { PopularThread, SidebarOp } from "@/lib/popular";
+import { getStaffMembers } from "@/lib/staff";
 
 type Props = {
   children: React.ReactNode;
@@ -17,7 +18,10 @@ export async function ForumShell({
   canViewNsfw,
   hideNsfwOpDetails,
 }: Props) {
-  const announcements = await getSidebarAnnouncements();
+  const [announcements, staff] = await Promise.all([
+    getSidebarAnnouncements(),
+    getStaffMembers(),
+  ]);
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_260px]">
@@ -26,6 +30,7 @@ export async function ForumShell({
         <Sidebar
           popularThreads={popularThreads}
           announcements={announcements}
+          staff={staff}
           op={op}
           canViewNsfw={canViewNsfw}
           hideNsfwOpDetails={hideNsfwOpDetails}

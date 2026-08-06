@@ -4,10 +4,12 @@ import { Username } from "@/components/Username";
 import { censorText } from "@/lib/censor";
 import type { SidebarAnnouncement } from "@/lib/announcements";
 import type { PopularThread, SidebarOp } from "@/lib/popular";
+import type { StaffMember } from "@/lib/staff";
 
 type Props = {
   popularThreads: PopularThread[];
   announcements?: SidebarAnnouncement[];
+  staff?: StaffMember[];
   op?: SidebarOp | null;
   canViewNsfw: boolean;
   hideNsfwOpDetails?: boolean;
@@ -16,6 +18,7 @@ type Props = {
 export function Sidebar({
   popularThreads,
   announcements = [],
+  staff = [],
   op,
   canViewNsfw,
   hideNsfwOpDetails = false,
@@ -24,6 +27,37 @@ export function Sidebar({
 
   return (
     <aside className="space-y-8">
+      <section>
+        <h2 className="font-medium mb-3 text-sm uppercase tracking-wide text-neutral-500">
+          Staff
+        </h2>
+        {!staff.length ? (
+          <p className="text-sm text-neutral-600">No staff listed.</p>
+        ) : (
+          <ul className="space-y-3">
+            {staff.map((member) => (
+              <li key={member.id} className="flex items-center gap-2 min-w-0">
+                <Avatar
+                  username={member.username}
+                  avatarUrl={member.avatar_url}
+                  size={28}
+                  presence={member.isOnline ? "online" : "offline"}
+                />
+                <div className="min-w-0">
+                  <Username
+                    username={member.username}
+                    isAdmin={member.is_admin}
+                    isModerator={member.is_moderator}
+                    color={member.username_color}
+                    href={`/u/${member.username}`}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       <section>
         <h2 className="font-medium mb-3 text-sm uppercase tracking-wide text-neutral-500">
           {"Popular threads (<30 days)"}

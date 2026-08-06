@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/actions/auth";
+import { ActivityTracker } from "@/components/ActivityTracker";
 import { Avatar } from "@/components/Avatar";
 import { NewThreadLink } from "@/components/NewThreadLink";
 import { StaffAlertsLink } from "@/components/StaffAlertsLink";
@@ -91,6 +92,7 @@ export async function Header() {
       <nav className="flex items-center gap-4 text-sm flex-wrap">
         {user ? (
           <>
+            <ActivityTracker />
             <Link
               href={username ? `/u/${username}` : "/profile"}
               className="flex items-center gap-2 no-underline"
