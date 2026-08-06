@@ -57,8 +57,7 @@ export function ProfileSettingsForm({
           className="border p-2"
         />
         <span className="text-sm text-neutral-600">
-          Required for Adult / NSFW access (must be 18+). Request access below
-          after setting this.
+          Must be 13+.
         </span>
       </label>
 

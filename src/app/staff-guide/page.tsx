@@ -140,7 +140,7 @@ export default async function StaffGuidePage() {
           <h2 className="text-lg font-medium mb-2">Display</h2>
           <p>
             Admins get a red glow username + Admin tag. Moderators get a pink glow
-            + Mod tag. Staff avatars are not blurred for NSFW profile settings.
+            + Mod tag. Staff avatars are not blurred for adult profile settings.
           </p>
         </section>
       </div>

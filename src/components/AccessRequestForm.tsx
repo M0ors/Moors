@@ -21,7 +21,7 @@ export function AccessRequestForm({
       <section className="mt-10 max-w-xl">
         <h2 className="font-medium mb-2">Request access</h2>
         <p className="text-sm text-neutral-600">
-          You already have NSFW / Adult board access.
+          You already have Adult board access.
         </p>
       </section>
     );
@@ -42,8 +42,8 @@ export function AccessRequestForm({
     <section className="mt-10 max-w-xl">
       <h2 className="font-medium mb-2">Request access</h2>
       <p className="text-sm text-neutral-600 mb-3">
-        NSFW and Adult board access is granted by an admin after you submit this
-        request. You must be 18+ with a date of birth set on your profile.
+        Additional board access is granted by an admin after you submit this
+        request.
       </p>
       {!open ? (
         <button
@@ -78,7 +78,7 @@ export function AccessRequestForm({
               rows={4}
               maxLength={1000}
               className="border p-2"
-              placeholder="e.g. NSFW / Adult board access"
+              placeholder="Additional board access"
             />
           </label>
           {state?.error ? <p className="text-red-600 text-sm">{state.error}</p> : null}

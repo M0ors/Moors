@@ -11,7 +11,6 @@ export function isNsfwProfile(nsfwEnabled?: boolean | null) {
   return Boolean(nsfwEnabled);
 }
 
-/** Blur NSFW avatars for non-NSFW viewers, but never blur admin/mod avatars. */
 export function shouldBlurAvatar(options: {
   nsfwEnabled?: boolean | null;
   isAdmin?: boolean | null;

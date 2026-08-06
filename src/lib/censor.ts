@@ -36,6 +36,8 @@ const WORDS = [
   "orgasm",
   "masturbat",
   "nsfw",
+  "nigger",
+  "nigga",
 ];
 
 function maskWord(word: string) {
@@ -49,7 +51,6 @@ const PATTERN = new RegExp(
   "gi"
 );
 
-/** Censor adult/swear words for users without NSFW access. */
 export function censorText(text: string | null | undefined, showUncensored: boolean) {
   if (!text) return text ?? "";
   if (showUncensored) return text;
