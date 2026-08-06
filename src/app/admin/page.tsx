@@ -29,8 +29,20 @@ type UserBadgeRow = {
   user_id: string;
   badge_id: string;
   badges:
-    | { id: string; name: string; image_url: string | null; is_nsfw: boolean }
-    | { id: string; name: string; image_url: string | null; is_nsfw: boolean }[]
+    | {
+        id: string;
+        slug: string;
+        name: string;
+        image_url: string | null;
+        is_nsfw: boolean;
+      }
+    | {
+        id: string;
+        slug: string;
+        name: string;
+        image_url: string | null;
+        is_nsfw: boolean;
+      }[]
     | null;
 };
 
@@ -118,7 +130,7 @@ export default async function AdminPage({ searchParams }: Props) {
       ? supabase
           .from("user_badges")
           .select(
-            "user_id, badge_id, badges:badge_id ( id, name, image_url, is_nsfw )"
+            "user_id, badge_id, badges:badge_id ( id, slug, name, image_url, is_nsfw )"
           )
       : Promise.resolve({ data: null }),
   ]);
@@ -129,7 +141,13 @@ export default async function AdminPage({ searchParams }: Props) {
 
   const badgesByUser = new Map<
     string,
-    { id: string; name: string; image_url: string | null; is_nsfw: boolean }[]
+    {
+      id: string;
+      slug: string;
+      name: string;
+      image_url: string | null;
+      is_nsfw: boolean;
+    }[]
   >();
   for (const row of (userBadgeRows as UserBadgeRow[] | null) ?? []) {
     const badge = Array.isArray(row.badges) ? row.badges[0] : row.badges;
