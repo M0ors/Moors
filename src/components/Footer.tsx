@@ -1,6 +1,10 @@
 import Link from "next/link";
+import { getCurrentProfile } from "@/lib/auth";
 
-export function Footer() {
+export async function Footer() {
+  const { profile } = await getCurrentProfile();
+  const isStaff = Boolean(profile?.is_admin || profile?.is_moderator);
+
   return (
     <footer className="border-t mt-12 pt-6 pb-2 text-sm text-neutral-600">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -10,6 +14,8 @@ export function Footer() {
           <Link href="/boards/general">General</Link>
           <Link href="/boards/stories">Stories</Link>
           <Link href="/profile">Settings</Link>
+          <Link href="/terms">Terms</Link>
+          {isStaff ? <Link href="/staff-guide">Staff guide</Link> : null}
         </nav>
       </div>
     </footer>

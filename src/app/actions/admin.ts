@@ -568,3 +568,126 @@ export async function setModerator(formData: FormData) {
   revalidatePath("/admin");
   redirect("/admin?tab=users");
 }
+
+export async function revokeAdultAccess(formData: FormData) {
+  void formData;
+  await requireAdmin();
+  const userId = String(formData.get("user_id") ?? "");
+  if (!userId) {
+    return;
+  }
+
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("profiles")
+    .update({ nsfw_enabled: false })
+    .eq("id", userId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const { BADGE_SLUGS } = await import("@/lib/badges");
+  const { data: badge } = await supabase
+    .from("badges")
+    .select("id")
+    .eq("slug", BADGE_SLUGS.joinedAdult)
+    .maybeSingle();
+
+  if (badge) {
+    await supabase
+      .from("user_badges")
+      .delete()
+      .eq("user_id", userId)
+      .eq("badge_id", badge.id);
+
+    await supabase
+      .from("profiles")
+      .update({ display_badge_id: null })
+      .eq("id", userId)
+      .eq("display_badge_id", badge.id);
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/");
+  redirect("/admin?tab=users");
+}
+
+export async function createAnnouncement(
+  _prevState: unknown,
+  formData: FormData
+) {
+  void _prevState;
+  const { user } = await requireAdmin();
+  const supabase = createClient();
+
+  const title = String(formData.get("title") ?? "").trim();
+  const body = String(formData.get("body") ?? "").trim();
+
+  if (!title || !body) {
+    return { error: "Title and text are required." };
+  }
+
+  if (title.length > 200) {
+    return { error: "Title must be 200 characters or less." };
+  }
+
+  const { error } = await supabase.from("announcements").insert({
+    title,
+    body,
+    author_id: user.id,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/");
+  redirect("/admin?tab=announcements");
+}
+
+export async function updateAnnouncement(formData: FormData) {
+  void formData;
+  await requireAdmin();
+  const supabase = createClient();
+
+  const id = String(formData.get("id") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
+  const body = String(formData.get("body") ?? "").trim();
+
+  if (!id || !title || !body) {
+    throw new Error("Title and text are required.");
+  }
+
+  const { error } = await supabase
+    .from("announcements")
+    .update({ title, body, updated_at: new Date().toISOString() })
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/admin");
+  revalidatePath(`/announcements/${id}`);
+  revalidatePath("/");
+  redirect("/admin?tab=announcements");
+}
+
+export async function deleteAnnouncement(formData: FormData) {
+  void formData;
+  await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const supabase = createClient();
+  const { error } = await supabase.from("announcements").delete().eq("id", id);
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/");
+  redirect("/admin?tab=announcements");
+}

@@ -3,6 +3,7 @@ import Link from "next/link";
 export type AdminTab =
   | "images"
   | "access"
+  | "announcements"
   | "sub-boards"
   | "badges"
   | "users";
@@ -10,6 +11,7 @@ export type AdminTab =
 const TABS: { id: AdminTab; label: string }[] = [
   { id: "images", label: "Images" },
   { id: "access", label: "Access" },
+  { id: "announcements", label: "Announcements" },
   { id: "sub-boards", label: "Sub-boards" },
   { id: "badges", label: "Badges" },
   { id: "users", label: "Users" },
@@ -60,6 +62,7 @@ export function parseAdminTab(
   const allowed = allowedTabs ?? [
     "images",
     "access",
+    "announcements",
     "sub-boards",
     "badges",
     "users",
@@ -68,6 +71,7 @@ export function parseAdminTab(
   if (
     value === "images" ||
     value === "access" ||
+    value === "announcements" ||
     value === "sub-boards" ||
     value === "badges" ||
     value === "users"

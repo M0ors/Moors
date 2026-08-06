@@ -1,10 +1,9 @@
-import Image from "next/image";
-import Link from "next/link";
 import {
   approvePostImage,
   banUser,
   rejectPostImage,
   removeUser,
+  revokeAdultAccess,
   revokeBadge,
   reviewAccessRequest,
   setModerator,
@@ -13,6 +12,7 @@ import {
 import { requireStaff } from "@/lib/auth";
 import { hasServiceRoleKey } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { AdminAnnouncements } from "@/components/AdminAnnouncements";
 import { AdminBadge } from "@/components/AdminBadge";
 import { AdminBadges } from "@/components/AdminBadges";
 import { AdminNav, parseAdminTab, type AdminTab } from "@/components/AdminNav";
@@ -20,6 +20,8 @@ import { AdminSubBoards } from "@/components/AdminSubBoards";
 import { Avatar } from "@/components/Avatar";
 import { BadgeIcon } from "@/components/BadgeIcon";
 import { ModBadge } from "@/components/ModBadge";
+import Link from "next/link";
+import Image from "next/image";
 
 type Props = {
   searchParams: { tab?: string };
@@ -52,7 +54,7 @@ export default async function AdminPage({ searchParams }: Props) {
   const supabase = createClient();
   const canRemove = hasServiceRoleKey();
   const allowedTabs: AdminTab[] = isAdmin
-    ? ["images", "access", "sub-boards", "badges", "users"]
+    ? ["images", "access", "announcements", "sub-boards", "badges", "users"]
     : ["images"];
   const tab = parseAdminTab(searchParams.tab, allowedTabs);
 
@@ -64,12 +66,13 @@ export default async function AdminPage({ searchParams }: Props) {
     { data: subBoards },
     { data: badges },
     { data: userBadgeRows },
+    { data: announcements },
   ] = await Promise.all([
     isAdmin
       ? supabase
           .from("profiles")
           .select(
-            "id, username, avatar_url, is_admin, is_moderator, is_banned, created_at"
+            "id, username, avatar_url, is_admin, is_moderator, is_banned, nsfw_enabled, created_at"
           )
           .order("created_at", { ascending: false })
       : Promise.resolve({ data: null, error: null }),
@@ -133,6 +136,12 @@ export default async function AdminPage({ searchParams }: Props) {
             "user_id, badge_id, badges:badge_id ( id, slug, name, image_url, is_nsfw )"
           )
       : Promise.resolve({ data: null }),
+    isAdmin
+      ? supabase
+          .from("announcements")
+          .select("id, title, body, like_count, dislike_count, created_at")
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: null }),
   ]);
 
   if (isAdmin && error) {
@@ -166,12 +175,15 @@ export default async function AdminPage({ searchParams }: Props) {
       <h1 className="text-2xl font-semibold mb-2">
         {isAdmin ? "Admin" : "Moderator"}
       </h1>
-      <p className="text-sm text-neutral-600 mb-6">
+      <p className="text-sm text-neutral-600 mb-2">
         {isAdmin
           ? `Moderate content and manage boards, badges, and users${
               canRemove ? "." : " (add SUPABASE_SERVICE_ROLE_KEY to enable remove)."
             }`
           : "Approve pending images. You can also delete threads and replies from the forum."}
+      </p>
+      <p className="text-sm mb-6">
+        <Link href="/staff-guide">Staff guide</Link>
       </p>
 
       <AdminNav
@@ -182,6 +194,10 @@ export default async function AdminPage({ searchParams }: Props) {
           access: accessRequests?.length ?? 0,
         }}
       />
+
+      {tab === "announcements" && isAdmin ? (
+        <AdminAnnouncements announcements={announcements ?? []} />
+      ) : null}
 
       {tab === "sub-boards" && isAdmin ? (
         <AdminSubBoards boards={boards ?? []} subBoards={subBoards ?? []} />
@@ -322,6 +338,11 @@ export default async function AdminPage({ searchParams }: Props) {
                           {profile.is_banned ? (
                             <span className="text-xs text-red-600">banned</span>
                           ) : null}
+                          {profile.nsfw_enabled ? (
+                            <span className="text-xs text-neutral-500">
+                              adult access
+                            </span>
+                          ) : null}
                         </p>
                         <p className="text-sm text-neutral-600">
                           joined {new Date(profile.created_at).toLocaleDateString()}
@@ -380,6 +401,17 @@ export default async function AdminPage({ searchParams }: Props) {
                               {profile.is_moderator
                                 ? "Remove moderator"
                                 : "Make moderator"}
+                            </button>
+                          </form>
+                        ) : null}
+                        {profile.nsfw_enabled ? (
+                          <form action={revokeAdultAccess}>
+                            <input type="hidden" name="user_id" value={profile.id} />
+                            <button
+                              type="submit"
+                              className="!bg-white !text-neutral-900"
+                            >
+                              Revoke adult access
                             </button>
                           </form>
                         ) : null}

@@ -2,10 +2,12 @@ import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
 import { Username } from "@/components/Username";
 import { censorText } from "@/lib/censor";
+import type { SidebarAnnouncement } from "@/lib/announcements";
 import type { PopularThread, SidebarOp } from "@/lib/popular";
 
 type Props = {
   popularThreads: PopularThread[];
+  announcements?: SidebarAnnouncement[];
   op?: SidebarOp | null;
   canViewNsfw: boolean;
   hideNsfwOpDetails?: boolean;
@@ -13,6 +15,7 @@ type Props = {
 
 export function Sidebar({
   popularThreads,
+  announcements = [],
   op,
   canViewNsfw,
   hideNsfwOpDetails = false,
@@ -37,6 +40,30 @@ export function Sidebar({
                 <p className="text-xs text-neutral-500 mt-0.5">
                   {thread.like_count} likes ·{" "}
                   {new Date(thread.created_at).toLocaleDateString()}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section>
+        <h2 className="font-medium mb-3 text-sm uppercase tracking-wide text-neutral-500">
+          Announcements
+        </h2>
+        {!announcements.length ? (
+          <p className="text-sm text-neutral-600">No announcements yet.</p>
+        ) : (
+          <ul className="space-y-3">
+            {announcements.map((item) => (
+              <li key={item.id}>
+                <Link href={item.href} className="text-sm font-medium block">
+                  {item.title}
+                </Link>
+                <p className="text-xs text-neutral-500 mt-0.5">
+                  {item.source === "site-update" ? "Site update" : "Announcement"}{" "}
+                  · {item.like_count} likes ·{" "}
+                  {new Date(item.created_at).toLocaleDateString()}
                 </p>
               </li>
             ))}

@@ -2,7 +2,7 @@ import Image from "next/image";
 import { castVote } from "@/app/actions/votes";
 
 type Props = {
-  targetType: "thread" | "post";
+  targetType: "thread" | "post" | "announcement";
   targetId: string;
   likeCount: number;
   dislikeCount: number;

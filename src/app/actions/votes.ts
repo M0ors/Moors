@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { onLikeReceived } from "@/lib/award-badges";
 import { createClient } from "@/lib/supabase/server";
 
-type TargetType = "thread" | "post";
+type TargetType = "thread" | "post" | "announcement";
 
 export async function castVote(formData: FormData) {
   const supabase = createClient();
@@ -23,7 +23,9 @@ export async function castVote(formData: FormData) {
   const redirectTo = String(formData.get("redirect_to") ?? "/");
 
   if (
-    (targetType !== "thread" && targetType !== "post") ||
+    (targetType !== "thread" &&
+      targetType !== "post" &&
+      targetType !== "announcement") ||
     !targetId ||
     (value !== 1 && value !== -1)
   ) {
@@ -87,7 +89,7 @@ export async function castVote(formData: FormData) {
           (thread.like_count ?? 0) + 1
         );
       }
-    } else {
+    } else if (targetType === "post") {
       const { data: post } = await supabase
         .from("posts")
         .select("author_id, like_count")
