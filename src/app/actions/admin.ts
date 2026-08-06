@@ -321,6 +321,32 @@ function badgeSlug(raw: string) {
     .slice(0, 40);
 }
 
+async function resolveBadgeImageUrl(
+  supabase: ReturnType<typeof createClient>,
+  formData: FormData,
+  slug: string,
+  existingUrl?: string | null
+) {
+  const { getBadgeImageFile, uploadBadgeImage } = await import(
+    "@/lib/badge-images"
+  );
+  const file = getBadgeImageFile(formData, "image");
+  if (file) {
+    const uploaded = await uploadBadgeImage(supabase, slug, file);
+    if (uploaded.error) {
+      return { error: uploaded.error, imageUrl: null as string | null };
+    }
+    return { error: null, imageUrl: uploaded.publicUrl };
+  }
+
+  const pasted = String(formData.get("image_url") ?? "").trim();
+  if (pasted) {
+    return { error: null, imageUrl: pasted };
+  }
+
+  return { error: null, imageUrl: existingUrl ?? null };
+}
+
 export async function createBadge(_prevState: unknown, formData: FormData) {
   void _prevState;
   await requireAdmin();
@@ -329,7 +355,6 @@ export async function createBadge(_prevState: unknown, formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const slugInput = String(formData.get("slug") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
-  const imageUrl = String(formData.get("image_url") ?? "").trim();
   const isNsfw = formData.get("is_nsfw") === "on";
   const sortOrder = Number(formData.get("sort_order") ?? 0) || 0;
   const slug = badgeSlug(slugInput || name);
@@ -338,11 +363,16 @@ export async function createBadge(_prevState: unknown, formData: FormData) {
     return { error: "Name and slug are required." };
   }
 
+  const image = await resolveBadgeImageUrl(supabase, formData, slug);
+  if (image.error) {
+    return { error: image.error };
+  }
+
   const { error } = await supabase.from("badges").insert({
     name,
     slug,
     description: description || null,
-    image_url: imageUrl || null,
+    image_url: image.imageUrl,
     is_nsfw: isNsfw,
     sort_order: sortOrder,
   });
@@ -363,7 +393,6 @@ export async function updateBadge(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
-  const imageUrl = String(formData.get("image_url") ?? "").trim();
   const isNsfw = formData.get("is_nsfw") === "on";
   const sortOrder = Number(formData.get("sort_order") ?? 0) || 0;
 
@@ -371,12 +400,32 @@ export async function updateBadge(formData: FormData) {
     throw new Error("Badge name is required.");
   }
 
+  const { data: existing } = await supabase
+    .from("badges")
+    .select("slug, image_url")
+    .eq("id", id)
+    .single();
+
+  if (!existing) {
+    throw new Error("Badge not found.");
+  }
+
+  const image = await resolveBadgeImageUrl(
+    supabase,
+    formData,
+    existing.slug,
+    existing.image_url
+  );
+  if (image.error) {
+    throw new Error(image.error);
+  }
+
   const { error } = await supabase
     .from("badges")
     .update({
       name,
       description: description || null,
-      image_url: imageUrl || null,
+      image_url: image.imageUrl,
       is_nsfw: isNsfw,
       sort_order: sortOrder,
     })

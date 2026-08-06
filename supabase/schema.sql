@@ -257,3 +257,38 @@ create policy "Users can delete their post images"
     bucket_id = 'post-images'
     and auth.uid()::text = (storage.foldername(name))[1]
   );
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'badges',
+  'badges',
+  true,
+  2097152,
+  array['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+)
+on conflict (id) do nothing;
+
+create policy "Badge images are publicly accessible"
+  on storage.objects for select
+  using (bucket_id = 'badges');
+
+create policy "Admins can upload badge images"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'badges'
+    and public.is_admin(auth.uid())
+  );
+
+create policy "Admins can update badge images"
+  on storage.objects for update
+  using (
+    bucket_id = 'badges'
+    and public.is_admin(auth.uid())
+  );
+
+create policy "Admins can delete badge images"
+  on storage.objects for delete
+  using (
+    bucket_id = 'badges'
+    and public.is_admin(auth.uid())
+  );

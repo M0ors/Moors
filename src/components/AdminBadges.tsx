@@ -31,8 +31,8 @@ export function AdminBadges({ badges }: Props) {
     <section>
       <h2 className="font-medium mb-2">Badges</h2>
       <p className="text-sm text-neutral-600 mb-4">
-        Create badges, set image URLs, and grant them to users by username.
-        Users can display one earned badge next to their username.
+        Create badges, upload images to Supabase Storage, and grant them by
+        username. Users can display one earned badge next to their username.
       </p>
 
       <form
@@ -94,7 +94,16 @@ export function AdminBadges({ badges }: Props) {
           <input name="description" maxLength={200} className="border p-2" />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          Image URL
+          Image upload
+          <input
+            name="image"
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            className="border p-2"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          Or image URL
           <input
             name="image_url"
             className="border p-2"
@@ -145,6 +154,15 @@ export function AdminBadges({ badges }: Props) {
                   <input
                     name="description"
                     defaultValue={badge.description ?? ""}
+                    className="border p-2"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  Replace image
+                  <input
+                    name="image"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
                     className="border p-2"
                   />
                 </label>
