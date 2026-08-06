@@ -85,7 +85,8 @@ export async function Header() {
         </Link>
         <nav className="flex items-center gap-3 text-sm">
           <Link href="/boards/general">General</Link>
-          <Link href="/boards/stories">Stories</Link>
+          <Link href="/boards/community">Community</Link>
+          <Link href="/boards/other">Other</Link>
           {canAdult ? <Link href="/boards/adult">Adult</Link> : null}
         </nav>
       </div>

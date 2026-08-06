@@ -17,18 +17,25 @@ create table if not exists public.sub_boards (
 
 create index if not exists sub_boards_board_id_idx on public.sub_boards (board_id, sort_order);
 
+insert into public.boards (slug, name, description, is_adult, sort_order)
+values ('other', 'Other', 'Gaming, coding, and miscellaneous', false, 3)
+on conflict (slug) do nothing;
+
+update public.boards set sort_order = 4 where slug = 'adult' and sort_order < 4;
+
 insert into public.sub_boards (board_id, slug, name, description, is_adult, sort_order, max_threads_per_user, op_only_replies, allow_anonymous)
 select b.id, v.slug, v.name, v.description, v.is_adult, v.sort_order, v.max_threads_per_user, v.op_only_replies, v.allow_anonymous
 from public.boards b
 join (
   values
     ('general', 'site-updates', 'Site updates', 'Announcements and site news', false, 1, null::integer, false, false),
-    ('general', 'coding', 'Coding', 'Code, tools, and technical talk', false, 2, null, false, false),
-    ('general', 'suggestions', 'Suggestions', 'Ideas and feedback', false, 3, null, false, false),
+    ('general', 'suggestions', 'Suggestions', 'Ideas and feedback', false, 2, null, false, false),
     ('stories', 'blogs', 'Blogs', 'Personal blogs — one thread per user; only the OP can reply', false, 1, 1, true, false),
     ('stories', 'quick-storytime', 'Quick storytime', 'Short stories and storytime posts', false, 2, null, false, false),
     ('stories', 'i-need-opinions', 'I need opinions', 'Ask for advice and opinions', false, 3, null, false, false),
     ('stories', 'confessions', 'Confessions', 'Adult confessions (NSFW)', true, 4, null, false, true),
+    ('other', 'gaming', 'Gaming', 'Games and gaming discussion', false, 1, null, false, false),
+    ('other', 'coding', 'Coding', 'Code, tools, and technical talk', false, 2, null, false, false),
     ('adult', 'images', 'Images', 'Adult images', true, 1, null, false, false),
     ('adult', 'cum', 'Cum', 'Adult discussion', true, 2, null, false, false),
     ('adult', 'deepthroat', 'Deepthroat', 'Adult discussion', true, 3, null, false, false),

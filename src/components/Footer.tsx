@@ -12,7 +12,8 @@ export async function Footer() {
         <nav className="flex flex-wrap gap-4">
           <Link href="/">Boards</Link>
           <Link href="/boards/general">General</Link>
-          <Link href="/boards/stories">Stories</Link>
+          <Link href="/boards/community">Community</Link>
+          <Link href="/boards/other">Other</Link>
           <Link href="/profile">Settings</Link>
           <Link href="/terms">Terms</Link>
           {isStaff ? <Link href="/staff-guide">Staff guide</Link> : null}
